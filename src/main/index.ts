@@ -2,6 +2,14 @@ import { app, shell, BrowserWindow, ipcMain } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
+import { setupDownloadHandlers } from './ipc/download-handlers'
+import * as fs from 'fs'
+
+// Добавьте отладочный вывод для проверки путей
+console.log('__dirname:', __dirname)
+const preloadPath = join(__dirname, '../preload/index.js')
+console.log('Preload path:', preloadPath)
+console.log('File exists:', fs.existsSync(preloadPath))
 
 function createWindow(): void {
   // Create the browser window.
@@ -12,7 +20,9 @@ function createWindow(): void {
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
     webPreferences: {
-      preload: join(__dirname, '../preload/index.js'),
+      preload: preloadPath,
+      nodeIntegration: false,
+      contextIsolation: true,
       sandbox: false
     }
   })
@@ -25,6 +35,8 @@ function createWindow(): void {
     shell.openExternal(details.url)
     return { action: 'deny' }
   })
+
+  setupDownloadHandlers()
 
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.

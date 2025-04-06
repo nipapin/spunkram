@@ -1,13 +1,17 @@
 <script setup lang="ts">
-import Versions from './components/Versions.vue'
+import Test from './test.vue';
 
-const ipcHandle = () => window.electron.ipcRenderer.send('ping')
+// import Versions from './components/Versions.vue'
+
+// const ipcHandle = () => window.electron.ipcRenderer.send('ping')
 </script>
 
 <template>
   <img alt="logo" class="logo" src="./assets/electron.svg" />
   <div class="creator">Powered by electron-vite</div>
-  <div class="text">
+
+
+  <!-- <div class="text">
     Build an Electron app with
     <span class="vue">Vue</span>
     and
@@ -21,6 +25,9 @@ const ipcHandle = () => window.electron.ipcRenderer.send('ping')
     <div class="action">
       <a target="_blank" rel="noreferrer" @click="ipcHandle">Send IPC</a>
     </div>
-  </div>
-  <Versions />
+  </div> -->
+  <!-- <Versions /> -->
+  <Test />
+
+   <h1 class="bg-red-400">What's new in <strong>3.1.1</strong>?</h1>
 </template>

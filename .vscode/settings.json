@@ -7,5 +7,32 @@
   },
   "[json]": {
     "editor.defaultFormatter": "esbenp.prettier-vscode"
-  }
+  },
+
+  "tailwindCSS.includeLanguages": {
+    "vue": "html",
+    "vue-html": "html",
+    "plaintext": "html"
+  },
+  "files.associations": {
+    "*.vue": "vue"
+  },
+  "tailwindCSS.experimental.configFile": "./tailwind.config.js",
+  "editor.quickSuggestions": {
+    "strings": "on",
+    "comments": "on",
+    "other": "on"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["ui:\\s*{([^)]*)\\s*}", "[\"'`]([^\"'`]*).*?[\"'`]"],
+    ["/\\*ui\\*/\\s*{([^;]*)}", ":\\s*[\"'`]([^\"'`]*).*?[\"'`]"]
+  ],
+  "tailwindCSS.classAttributes": ["class", "className", "ngClass", "ui"],
+  "editor.inlineSuggest.enabled": true,
+  "editor.suggest.showStatusBar": true,
+  "editor.suggest.preview": true,
+  "editor.suggest.shareSuggestSelections": true,
+  "tailwindCSS.emmetCompletions": true,
+  "editor.formatOnSave": true,
+  "intelephense.format.enable": true
 }
