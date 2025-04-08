@@ -1,9 +1,12 @@
 <script setup lang="ts">
+// import LoadingButton from './components/LoadingButton.vue';
 import Test from './test.vue';
 
 // import Versions from './components/Versions.vue'
 
 // const ipcHandle = () => window.electron.ipcRenderer.send('ping')
+
+
 </script>
 
 <template>
@@ -28,6 +31,7 @@ import Test from './test.vue';
   </div> -->
   <!-- <Versions /> -->
   <Test />
+
 
    <h1 class="bg-red-400">What's new in <strong>3.1.1</strong>?</h1>
 </template>

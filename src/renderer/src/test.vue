@@ -2,6 +2,7 @@
 import { ref, computed, onBeforeUnmount } from 'vue'
 
 const isHovered = ref(false)
+
 const isLoading = ref(false)
 const downloadProgress = ref(0)
 const installationStatus = ref('')
@@ -23,6 +24,25 @@ const progressStyle = computed(() => {
     background: `conic-gradient(red ${progress}%, transparent ${progress}%)`
   }
 })
+
+const testInstall = () => {
+  isLoading.value = true
+
+  const l = setInterval(() => {
+    if (downloadProgress.value < 100) {
+      downloadProgress.value++
+    } else {
+      isLoading.value = false
+      setTimeout(() => {
+        installationStatus.value = 'Расширение успешно установлено!'
+
+        downloadProgress.value = 0
+
+        clearInterval(l)
+      }, 500)
+    }
+  }, 25)
+}
 
 const installExtension = async () => {
   if (isLoading.value) return
@@ -95,114 +115,140 @@ const installExtension = async () => {
     }, 3000)
   }
 }
+
+const radius = 45
+const circumference = computed(() => 2 * Math.PI * radius)
+const strokeOffset = computed(
+  () =>
+    circumference.value - (downloadProgress.value / 100) * circumference.value
+)
 </script>
 <template>
-  <!-- Круглая кнопка с прогресс-баром -->
-  <div class="flex flex-col items-center my-8">
-    <div
-      class="relative"
-      @mouseenter="isHovered = true"
-      @mouseleave="isHovered = false"
+  <div class="relative size-28 flex items-center justify-center">
+    <!-- Фоновый круг -->
+    <!-- <svg class="absolute w-full h-full" viewBox="0 0 100 100">
+
+    </svg> -->
+
+    <!-- Прогресс -->
+    <svg class="absolute top-0 left-0 w-full h-full" viewBox="0 0 100 100">
+      <circle
+        cx="50"
+        cy="50"
+        r="45"
+        fill="none"
+        class="stroke-blue-400 transition-all"
+        :class="
+          isLoading
+            ? 'opacity-25 ease-in-out duration-200'
+            : 'opacity-0 ease-out duration-200'
+        "
+        stroke-width="6"
+      />
+      <circle
+        :class="
+          isLoading
+            ? 'transition-all'
+            : 'opacity-0 transition-opacity duration-500'
+        "
+        class="progress-ring__circle"
+        stroke="#3b82f6"
+        stroke-width="6"
+        stroke-linecap="round"
+        fill="none"
+        cx="50"
+        cy="50"
+        r="45"
+        :stroke-dasharray="circumference"
+        :stroke-dashoffset="strokeOffset"
+      />
+    </svg>
+
+    <!-- Текст прогресса -->
+    <button
+      class="inset-0 z-10 flex items-center justify-center size-20 shrink-0 rounded-full bg-blue-500 hover:scale-105 hover:bg-blue-600 transition-all duration-300"
+      :class="{
+        'pointer-events-none': isLoading,
+        'jump-animation shadow-pulse': downloadProgress === 100,
+        'scale-110 bg-green-500': downloadProgress === 100 && !isLoading
+      }"
+      @click="testInstall"
     >
-      <!-- Кнопка с интегрированным прогресс-баром -->
-      <button
-        class="progress-button size-20 rounded-full flex items-center justify-center transition-all duration-300"
-        :class="{ hovered: isHovered, loading: isLoading }"
-        :style="isLoading ? `--progress: ${downloadProgress}%` : ''"
-        @click="installExtension"
+      <!-- <div
+        class="inner-button size-20 shrink-0 rounded-full bg-blue-500 flex items-center justify-center shadow-lg"
       >
-        <div
-          class="inner-button size-20 shrink-0 rounded-full bg-blue-500 flex items-center justify-center shadow-lg"
-        >
-          <svg
-            v-if="!isLoading"
-            xmlns="http://www.w3.org/2000/svg"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="white"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            class="size-10"
-          >
-            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-            <polyline points="7 10 12 15 17 10"></polyline>
-            <line x1="12" y1="15" x2="12" y2="3"></line>
-          </svg>
-          <div v-else class="text-sm font-semibold text-white">
-            {{ Math.round(downloadProgress) }}%
-          </div>
-        </div>
-      </button>
 
-      <!-- Индикатор процента загрузки -->
-    </div>
+      </div> -->
+      <svg
+        v-if="!isLoading"
+        xmlns="http://www.w3.org/2000/svg"
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="white"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+        class="size-10"
+      >
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      <div v-else class="text-sm font-semibold text-white">
+        {{ Math.round(downloadProgress) }}%
+      </div>
+    </button>
+  </div>
 
-    <!-- Статус установки -->
-    <div
-      v-if="installationStatus"
-      class="mt-8 text-center text-sm font-medium text-gray-700 bg-gray-100 px-4 py-2 rounded-lg"
-    >
-      {{ installationStatus }}
-    </div>
+  <div
+    v-if="installationStatus"
+    class="mt-8 text-center text-sm font-medium text-gray-700 bg-gray-100 px-4 py-2 rounded-lg"
+  >
+    {{ installationStatus }}
   </div>
 </template>
 
 <style scoped>
-/* Стили для кнопки с интегрированным прогресс-баром в виде обводки */
-.progress-button {
-  position: relative;
-  background: transparent;
-  --progress: 0%;
-  padding: 70px;
+.progress-ring__circle {
+  transform: rotate(-90deg); /* Это уже правильное значение для старта сверху */
+  transform-origin: 50% 50%;
+}
+.jump-animation {
+  animation: jump 0.6s cubic-bezier(0.25, 1, 0.5, 1.5);
+}
+@keyframes jump {
+  0% {
+    transform: scale(1);
+  }
+  20% {
+    transform: scale(0.95);
+  } /* Мини-подготовка перед прыжком */
+  40% {
+    transform: scale(1.8);
+  } /* Максимальное увеличение */
+  60% {
+    transform: scale(1.6);
+  } /* Откат назад */
+  80% {
+    transform: scale(1.9);
+  } /* Второй мини-прыжок */
+  100% {
+    transform: scale(1.5);
+  } /* Финал с небольшим увеличением */
 }
 
-.progress-button::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  border-radius: 50%;
-  /* Улучшаем гладкость обводки */
-  mask: radial-gradient(
-    transparent calc(50% - 3px),
-    #000 calc(50% - 3px),
-    #000 calc(50% - 1px),
-    transparent calc(50% - 1px)
-  );
-  -webkit-mask: radial-gradient(
-    transparent calc(50% - 3px),
-    #000 calc(50% - 3px),
-    #000 calc(50% - 1px),
-    transparent calc(50% - 1px)
-  );
-  background: conic-gradient(#3b82f6 var(--progress), #e5e7eb var(--progress));
-  opacity: 1;
-  transition: opacity 0.3s;
-  /* Добавляем сглаживание */
-  transform: translateZ(0);
-  backface-visibility: hidden;
-  will-change: transform;
+.shadow-pulse {
+  animation: shadowPulse 0.6s cubic-bezier(0.25, 1, 0.5, 1.5);
 }
-
-.progress-button.loading::before {
-  opacity: 1;
-}
-
-.progress-button.hovered .inner-button {
-  background-color: #2563eb; /* bg-blue-600 */
-  transform: scale(1.05);
-}
-
-.progress-button.loading .inner-button {
-  opacity: 0.8;
-}
-
-.inner-button {
-  position: relative;
-  z-index: 1;
-  transition: all 0.3s;
+@keyframes shadowPulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0.4);
+  }
+  40% {
+    box-shadow: 0 0 0 20px rgba(59, 130, 246, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(59, 130, 246, 0);
+  }
 }
 </style>
