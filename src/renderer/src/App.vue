@@ -1,37 +1,28 @@
 <script setup lang="ts">
-// import LoadingButton from './components/LoadingButton.vue';
-import Test from './test.vue';
-
-// import Versions from './components/Versions.vue'
-
-// const ipcHandle = () => window.electron.ipcRenderer.send('ping')
-
-
+import MainForm from './MainForm.vue'
+import Footer from './components/Footer.vue'
+import { URL_UPDATES_LOG, URL_VISIT_WEBSITE } from '@common/constants'
 </script>
 
 <template>
-  <img alt="logo" class="logo" src="./assets/electron.svg" />
-  <div class="creator">Powered by electron-vite</div>
-
-
-  <!-- <div class="text">
-    Build an Electron app with
-    <span class="vue">Vue</span>
-    and
-    <span class="ts">TypeScript</span>
+  <div class="p-4 flex items-center">
+    <a
+      class="hover:text-primary-500 text-gray-400 text-sm font-semibold transition-all duration-300"
+      :href="URL_VISIT_WEBSITE"
+      target="_blank"
+      rel="noopener noreferrer"
+      >Visit Website</a
+    >
+    <span class="mx-3 text-gray-500">•</span>
+    <a
+      class="hover:text-primary-500 text-gray-400 text-sm font-semibold transition-all duration-300"
+      :href="URL_UPDATES_LOG"
+      target="_blank"
+      rel="noopener noreferrer"
+      >What's new?</a
+    >
   </div>
-  <p class="tip">Please try pressing <code>F12</code> to open the devTool</p>
-  <div class="actions">
-    <div class="action">
-      <a href="https://electron-vite.org/" target="_blank" rel="noreferrer">Documentation</a>
-    </div>
-    <div class="action">
-      <a target="_blank" rel="noreferrer" @click="ipcHandle">Send IPC</a>
-    </div>
-  </div> -->
-  <!-- <Versions /> -->
-  <Test />
+  <MainForm />
 
-
-   <h1 class="bg-red-400">What's new in <strong>3.1.1</strong>?</h1>
+  <Footer />
 </template>

@@ -3,6 +3,7 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { setupDownloadHandlers } from './ipc/download-handlers'
+import { registerVersionHandlers } from './ipc/get-versions'
 import * as fs from 'fs'
 
 // Добавьте отладочный вывод для проверки путей
@@ -36,8 +37,6 @@ function createWindow(): void {
     return { action: 'deny' }
   })
 
-  setupDownloadHandlers()
-
   // HMR for renderer base on electron-vite cli.
   // Load the remote URL for development or the local html file for production.
   if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
@@ -63,6 +62,11 @@ app.whenReady().then(() => {
 
   // IPC test
   ipcMain.on('ping', () => console.log('pong'))
+
+  // Register IPC download zxp handlers
+  setupDownloadHandlers()
+  // Register all IPC handlers
+  registerVersionHandlers()
 
   createWindow()
 

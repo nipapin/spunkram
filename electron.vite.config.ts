@@ -10,7 +10,12 @@ import autoprefixer from 'autoprefixer'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin(), bytecodePlugin()]
+    plugins: [externalizeDepsPlugin(), bytecodePlugin()],
+    resolve: {
+      alias: {
+        '@common': resolve('src/common')
+      }
+    }
   },
   preload: {
     plugins: [externalizeDepsPlugin(), bytecodePlugin()]
@@ -18,7 +23,8 @@ export default defineConfig({
   renderer: {
     resolve: {
       alias: {
-        '@renderer': resolve('src/renderer/src')
+        '@renderer': resolve('src/renderer/src'),
+        '@common': resolve('src/common')
       }
     },
     plugins: [vue()],
