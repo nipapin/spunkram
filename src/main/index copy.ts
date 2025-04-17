@@ -5,7 +5,6 @@ import icon from '../../resources/icon.png?asset'
 import { setupDownloadHandlers } from './ipc/download-handlers'
 import { registerVersionHandlers } from './ipc/get-versions'
 import * as fs from 'fs'
-import * as path from 'path'
 
 // Добавьте отладочный вывод для проверки путей
 console.log('__dirname:', __dirname)
@@ -13,57 +12,8 @@ const preloadPath = join(__dirname, '../preload/index.js')
 console.log('Preload path:', preloadPath)
 console.log('File exists:', fs.existsSync(preloadPath))
 
-// Обработка событий Squirrel.Windows
-if (require('electron-squirrel-startup')) {
-  app.quit()
-}
 
-// Дополнительная обработка событий Squirrel
-if (process.platform === 'win32') {
-  const appFolder = path.dirname(process.execPath)
-  const updateExe = path.resolve(appFolder, '..', 'Update.exe')
-  const exeName = path.basename(process.execPath)
 
-  const spawn = function (command, args) {
-    let spawnedProcess
-
-    try {
-      spawnedProcess = require('child_process').spawn(command, args, {
-        detached: true
-      })
-    } catch (error) {
-      console.error(error)
-    }
-
-    return spawnedProcess
-  }
-
-  const spawnUpdate = function (args) {
-    return spawn(updateExe, args)
-  }
-
-  const squirrelEvent = process.argv[1]
-
-  switch (squirrelEvent) {
-    case '--squirrel-install':
-    case '--squirrel-updated':
-      // Создаем ярлыки при установке или обновлении
-      spawnUpdate(['--createShortcut', exeName])
-      setTimeout(app.quit, 1000)
-      return true
-
-    case '--squirrel-uninstall':
-      // Удаляем ярлыки при удалении
-      spawnUpdate(['--removeShortcut', exeName])
-      setTimeout(app.quit, 1000)
-      return true
-
-    case '--squirrel-obsolete':
-      // Вызывается на устаревшей версии после обновления
-      app.quit()
-      return true
-  }
-}
 
 function createWindow(): void {
   // Create the browser window.

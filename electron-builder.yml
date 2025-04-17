@@ -15,17 +15,23 @@ win:
   executableName: AtomX-Installer
   icon: build/icon.ico
   target:
-    - target: nsis
+    - target: squirrel
       arch:
         - x64
+# Настройки Squirrel
+squirrelWindows:
+  iconUrl: https://raw.githubusercontent.com/neuronbug/app-installer-helper-atomx/main/build/icon.ico
+  loadingGif: build/installer.gif  # Необязательно: GIF, отображаемый во время установки
+  artifactName: ${productName}-${version}-Setup.${ext}
+
 nsis:
   artifactName: ${productName}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-  oneClick: true
-  perMachine: false
-  allowToChangeInstallationDirectory: false
+  oneClick: false
+  perMachine: true
+  allowToChangeInstallationDirectory: true
 mac:
   icon: build/icon.icns
   category: public.app-category.utilities
