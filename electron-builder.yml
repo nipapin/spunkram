@@ -9,29 +9,32 @@ files:
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!**/*.{iml,o,hprof,orig,pyc,pyo,rbc,swp,csproj,sln,xproj}'
+  - '!**/node_modules/**/{CHANGELOG.md,README.md,README,readme.md,readme,test,__tests__,tests,powered-test,example,examples,*.d.ts}'
+  - '!**/node_modules/.bin'
+  - '!**/*.{spec,test}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
+  - '!**/node_modules/**/{.editorconfig,.eslintrc.js,.eslintrc.cjs,.eslintrc.json,.eslintrc,.eslintignore,.gitattributes,.gitignore,.npmignore,.prettierrc,.prettierrc.js,.prettierrc.json,.prettierrc.yaml,.prettierrc.yml}'
+compression: maximum
+asar: true
 asarUnpack:
   - resources/**
 win:
   executableName: AtomX-Installer
   icon: build/icon.ico
   target:
-    - target: squirrel
+    - target: nsis
       arch:
         - x64
-# Настройки Squirrel
-squirrelWindows:
-  iconUrl: https://raw.githubusercontent.com/neuronbug/app-installer-helper-atomx/main/build/icon.ico
-  loadingGif: build/installer.gif  # Необязательно: GIF, отображаемый во время установки
-  artifactName: ${productName}-${version}-Setup.${ext}
-
 nsis:
   artifactName: ${productName}-${version}-setup.${ext}
   shortcutName: ${productName}
   uninstallDisplayName: ${productName}
   createDesktopShortcut: always
-  oneClick: false
+  oneClick: true
   perMachine: true
-  allowToChangeInstallationDirectory: true
+  allowToChangeInstallationDirectory: false
+  deleteAppDataOnUninstall: true
+  differentialPackage: false
 mac:
   icon: build/icon.icns
   category: public.app-category.utilities
