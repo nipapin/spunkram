@@ -1,5 +1,5 @@
-appId: com.atomx.installer
-productName: AtomX Installer
+appId: com.odinpro.installer
+productName: Odin Pro Installer
 directories:
   buildResources: build
 files:
@@ -19,7 +19,7 @@ asar: true
 asarUnpack:
   - resources/**
 win:
-  executableName: AtomX-Installer
+  executableName: Odin-Pro-Installer
   icon: build/icon.ico
   target:
     - target: nsis
@@ -62,13 +62,13 @@ linux:
   target:
     - AppImage
     - deb
-  maintainer: get-atomx.com
+  maintainer: odin-pro.com
   category: Utility
 appImage:
   artifactName: ${productName}-${version}.${ext}
 npmRebuild: false
 publish:
   provider: generic
-  url: https://get-atomx.com/changelog
+  url: https://odin-pro.com/changelog
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/

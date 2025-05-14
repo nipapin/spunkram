@@ -67,7 +67,7 @@ onBeforeUnmount(() => {
       <button
         class="flex items-center gap-1 w-48 font-semibold rounded-full text-left p-1 ml-1 px-2"
         :class="{
-          'bg-primary-500 hover:bg-primary-600 text-white transition-colors duration-200':
+          'bg-primary-500 hover:bg-primary-600 text-background transition-colors duration-200':
             !checkLatest,
           ' text-gray-400 px-3': checkLatest
         }"
@@ -126,7 +126,7 @@ onBeforeUnmount(() => {
     >
       <div
         v-if="isDropdownOpen"
-        class="absolute mt-2 w-72 rounded-md shadow-lg bg-gray-900 ring-1 ring-gray-700 z-50"
+        class="absolute mt-2 w-72 rounded-md shadow-lg bg-background ring-1 ring-gray-700 z-50"
       >
         <div class="py-1 max-h-44 overflow-y-auto custom-scrollbar">
           <!-- Перебираем группы -->

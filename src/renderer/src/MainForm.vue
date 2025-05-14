@@ -182,19 +182,14 @@ const strokeOffset = computed(
       <div
         v-if="currentState === 'not-installed'"
         key="not-installed"
-        class="font-mono text-xl font-semibold text-gray-200 absolute text-center"
+        class="text-xl text-gray-200 absolute text-center"
       >
-        <span class="text-xl font-semibold text-gray-200"
-          >Click the button to</span
-        >
-        <span
-          class="block mt-1 text-2xl font-bold text-primary-500 text-nowrap"
-        >
-          > install_extension(<strong class="text-white">{{
+        <p class="text-nowrap text-[2rem] font-extralight leading-[1.1]">
+          Click the button<br />to install
+          <span class="text-[var(--primary)] font-normal">{{
             EXTENSION_NAME
-          }}</strong
-          >);</span
-        >
+          }}</span>
+        </p>
       </div>
 
       <!-- Состояние 2: Установлено -->
@@ -280,7 +275,7 @@ const strokeOffset = computed(
           cy="50"
           r="45"
           fill="none"
-          class="stroke-blue-400 transition-all"
+          class="stroke-[var(--primary-dark)] transition-all"
           :class="
             isLoading
               ? 'opacity-25 ease-in-out duration-200'
@@ -295,7 +290,7 @@ const strokeOffset = computed(
               : 'opacity-0 transition-opacity duration-500'
           "
           class="progress-ring__circle"
-          stroke="#3b82f6"
+          stroke="var(--primary)"
           stroke-width="6"
           stroke-linecap="round"
           fill="none"
@@ -308,7 +303,7 @@ const strokeOffset = computed(
       </svg>
 
       <button
-        class="inset-0 relative flex items-center justify-center size-20 shrink-0 rounded-full hover:scale-105 transition-all duration-300 bg-primary-500 hover:bg-primary-600"
+        class="inset-0 relative flex items-center justify-center size-20 shrink-0 rounded-full hover:scale-105 transition-all duration-300 bg-[var(--primary)] hover:bg-[var(--primary-dark)]"
         :class="{
           'pointer-events-none': isLoading,
           'jump-animation shadow-pulse': downloadProgress === 100,
@@ -318,7 +313,7 @@ const strokeOffset = computed(
       >
         <span
           v-show="currentState === 'not-installed' && !isLoading"
-          class="absolute inline-flex size-20 animate-ping rounded-full pointer-events-none bg-primary-500 opacity-25"
+          class="absolute inline-flex size-20 animate-ping rounded-full pointer-events-none bg-[var(--primary)] opacity-25"
         ></span>
 
         <svg
@@ -326,7 +321,7 @@ const strokeOffset = computed(
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 24 24"
           fill="none"
-          stroke="white"
+          stroke="var(--background)"
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
@@ -336,23 +331,13 @@ const strokeOffset = computed(
           <polyline points="7 10 12 15 17 10"></polyline>
           <line x1="12" y1="15" x2="12" y2="3"></line>
         </svg>
-        <div v-else class="text-sm font-semibold text-white">
+        <div v-else class="text-sm font-semibold text-[var(--background)]">
           {{ Math.round(downloadProgress) }}%
         </div>
       </button>
     </div>
 
     <div class="mt-10">
-      <Transition
-        enter-active-class="transition-all duration-700 ease-out"
-        enter-from-class="h-0 opacity-0"
-        enter-to-class="h-16 opacity-100"
-      >
-        <div
-          v-if="currentState == 'installed'"
-          class="w-2 bg-gradient-to-b from-success-500 to-primary-500 mx-auto rounded-full"
-        ></div>
-      </Transition>
       <Transition
         enter-active-class="transition-all duration-500 ease-out delay-700"
         leave-active-class="transition-all duration-300 ease-in"
@@ -391,7 +376,7 @@ const strokeOffset = computed(
   >
     <div
       v-if="installationStatus"
-      class="mt-8 text-center text-sm font-medium text-gray-700 bg-gray-100 px-4 py-2 rounded-lg shadow-sm"
+      class="mt-8 text-center text-sm font-medium text-background bg-primary-500 px-4 py-2 rounded-lg shadow-sm"
     >
       {{ installationStatus }}
     </div>

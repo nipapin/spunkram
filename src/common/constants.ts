@@ -1,5 +1,5 @@
-export const EXTENSION_NAME = 'AtomX'
-export const AUTHOR_NAME = 'aniom'
+export const EXTENSION_NAME = 'Odin Pro'
+export const AUTHOR_NAME = 'Premiere Basics'
 // Базовый URL API
 const BASE_API_URL = 'https://api.get-atomx.com/atomx/v1/'
 
@@ -7,7 +7,9 @@ const BASE_API_URL = 'https://api.get-atomx.com/atomx/v1/'
 const createUrlWithExtName = (slug: string, link_slug: string | null) => {
   const url = new URL(slug, BASE_API_URL).toString()
   const assignAuthor =
-    slug == 'author' ? `name=${AUTHOR_NAME}` : `king=${AUTHOR_NAME}`
+    slug == 'author'
+      ? `name=${AUTHOR_NAME.replace(' ', '%20')}`
+      : `king=${AUTHOR_NAME.replace(' ', '%20')}`
   const pPath = slug == 'link' ? `&goto=${link_slug}` : ''
 
   return `${url}?${assignAuthor}${pPath}`

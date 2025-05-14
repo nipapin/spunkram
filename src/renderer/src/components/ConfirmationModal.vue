@@ -12,7 +12,7 @@
 
       <!-- Модальное окно -->
       <div
-        class="relative bg-gray-900 rounded-lg shadow-xl p-6 max-w-md w-full m-4 content-transition border border-gray-700"
+        class="relative backdrop-blur-sm rounded-lg shadow-xl p-6 max-w-md w-full m-4 content-transition border border-gray-700"
       >
         <!-- Заголовок -->
         <div class="text-center mb-4">
