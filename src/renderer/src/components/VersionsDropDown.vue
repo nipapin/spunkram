@@ -27,10 +27,10 @@ const dropdownRef = ref(null)
 const emit = defineEmits(['download-version', 'uninstall'])
 
 // Функция для обработки действий
-const handleVersionAction = (action) => {
+const handleVersionAction = (action, groupName) => {
   console.log(`Executing action: ${action}`)
   console.log(`Downloading software version: ${action}`)
-  emit('download-version', action)
+  emit('download-version', action, groupName)
   // Закрываем выпадающий список после выбора
   isDropdownOpen.value = false
 }
@@ -72,7 +72,7 @@ onBeforeUnmount(() => {
           ' text-gray-400 px-3': checkLatest
         }"
         :disabled="checkLatest"
-        @click="handleVersionAction(latestVersion)"
+        @click="handleVersionAction(latestVersion, 'stable')"
       >
         <template v-if="!checkLatest">
           <svg
@@ -136,7 +136,9 @@ onBeforeUnmount(() => {
             class="mb-2"
           >
             <!-- Заголовок группы -->
+
             <div
+              v-if="group.length"
               class="px-4 py-2 text-xs font-semibold text-gray-500 uppercase tracking-wider border-b border-gray-800"
             >
               {{ groupName }} Releases
@@ -147,7 +149,7 @@ onBeforeUnmount(() => {
               v-for="version in group"
               :key="version.name"
               class="px-4 py-3 hover:bg-gray-800 cursor-pointer transition-colors duration-150"
-              @click="handleVersionAction(version.action)"
+              @click="handleVersionAction(version.action, groupName)"
             >
               <div class="flex justify-between items-center">
                 <div

@@ -1,10 +1,9 @@
-import { ipcMain, dialog } from 'electron'
+import { ipcMain } from 'electron'
 import * as https from 'https'
 import * as fs from 'fs'
 import * as path from 'path'
 import * as os from 'os'
 import AdmZip from 'adm-zip'
-import { exec } from 'sudo-prompt'
 import { EXTENSION_URL, EXTENSION_NAME } from '@common/constants'
 import { getVersionFilePath } from './get-versions'
 // Используйте fs вместо rimraf для удаления директорий
@@ -39,235 +38,26 @@ export function setupDownloadHandlers() {
 
         console.log('Download completed, installing...')
 
-        // 2. Определяем пути к директориям расширений Adobe CEP
-        const systemCepPath = getSystemCEPPath()
-        const userCepPath = getUserCEPPath()
+        // 2. Определяем путь к директории расширений Adobe CEP
+        const cepPath = getCEPExtensionsPath()
+        const extensionDir = path.join(cepPath, extensionName)
 
-        // По умолчанию используем системный путь
-        let targetCepPath = systemCepPath
-        let extensionDir = path.join(targetCepPath, extensionName)
+        console.log(`Will install to: ${extensionDir}`)
 
-        console.log(`System CEP path: ${systemCepPath}`)
-        console.log(`User CEP path: ${userCepPath}`)
-        console.log(`Initial target path: ${targetCepPath}`)
-
-        // 3. Проверяем, есть ли права на запись в системную директорию
-        const hasSystemWriteAccess = checkWriteAccess(systemCepPath)
-
-        if (!hasSystemWriteAccess) {
-          console.log('No write access to system CEP directory')
-
-          // Показываем диалог пользователю
-          const { response } = await dialog.showMessageBox({
-            type: 'question',
-            buttons: [
-              'Install with administrator rights',
-              'Install to user directory (no rights needed)',
-              'Cancel'
-            ],
-            defaultId: 0,
-            title: 'Administrator rights required',
-            message:
-              'Installing the extension into the system directory requires administrator rights.',
-            detail:
-              'You can install the extension with administrator rights or in the user directory.'
-          })
-
-          if (response === 2) {
-            // Отмена
-            throw new Error('Installation cancelled by user')
-          } else if (response === 1) {
-            // Пользовательская директория
-            console.log('Using user CEP directory')
-            targetCepPath = userCepPath
-            extensionDir = path.join(targetCepPath, extensionName)
-
-            // Создаем пользовательскую директорию, если она не существует
-            if (!fs.existsSync(targetCepPath)) {
-              fs.mkdirSync(targetCepPath, { recursive: true })
-            }
-
-            // Удаляем существующую папку расширения, если она есть
-            if (fs.existsSync(extensionDir)) {
-              fs.rmSync(extensionDir, { recursive: true, force: true })
-            }
-
-            // Создаем директорию для расширения
-            fs.mkdirSync(extensionDir, { recursive: true })
-
-            // Распаковываем ZXP архив
-            try {
-              const zip = new AdmZip(zxpPath)
-              zip.extractAllTo(extensionDir, true)
-            } catch (zipError) {
-              console.error('Error extracting zip:', zipError)
-              throw new Error(
-                `Failed to extract archive: ${zipError instanceof Error ? zipError.message : 'Unknown error'}`
-              )
-            }
-
-            // Удаляем временный ZXP файл
-            fs.unlinkSync(zxpPath)
-
-            event.sender.send('extension-installed', {
-              success: true,
-              path: extensionDir,
-              userDirectory: true
-            })
-            return
-          } else {
-            // Установка с правами администратора
-            console.log('Installing with elevated privileges')
-
-            // Создаем временную директорию для распаковки
-            const extractDir = path.join(tempDir, 'extracted')
-            if (fs.existsSync(extractDir)) {
-              fs.rmSync(extractDir, { recursive: true, force: true })
-            }
-            fs.mkdirSync(extractDir, { recursive: true })
-
-            // Распаковываем ZXP во временную директорию
-            try {
-              const zip = new AdmZip(zxpPath)
-              zip.extractAllTo(extractDir, true)
-            } catch (zipError) {
-              console.error('Error extracting zip:', zipError)
-              throw new Error(
-                `Failed to extract archive: ${zipError instanceof Error ? zipError.message : 'Unknown error'}`
-              )
-            }
-
-            // Создаем скрипт для копирования с повышенными правами
-            let scriptPath: string
-            let scriptContent: string
-
-            if (process.platform === 'win32') {
-              // Windows: используем bat-файл с дополнительным логированием
-              scriptPath = path.join(tempDir, 'install.bat')
-              scriptContent = `
-            @echo off
-            echo Starting installation script > "%TEMP%\\atomx-install-log.txt"
-            echo System CEP path: "${systemCepPath}" >> "%TEMP%\\atomx-install-log.txt"
-            echo Extension dir: "${extensionDir}" >> "%TEMP%\\atomx-install-log.txt"
-            echo Extract dir: "${extractDir}" >> "%TEMP%\\atomx-install-log.txt"
-
-            if not exist "${systemCepPath}" (
-              echo Creating system CEP path >> "%TEMP%\\atomx-install-log.txt"
-              mkdir "${systemCepPath}" 2>> "%TEMP%\\atomx-install-log.txt"
-            )
-
-            if exist "${extensionDir}" (
-              echo Removing existing extension dir >> "%TEMP%\\atomx-install-log.txt"
-              rmdir /s /q "${extensionDir}" 2>> "%TEMP%\\atomx-install-log.txt"
-            )
-
-            echo Creating extension dir >> "%TEMP%\\atomx-install-log.txt"
-            mkdir "${extensionDir}" 2>> "%TEMP%\\atomx-install-log.txt"
-
-            echo Copying files >> "%TEMP%\\atomx-install-log.txt"
-            xcopy "${extractDir.replace(/\\/g, '\\\\')}" "${extensionDir.replace(/\\/g, '\\\\')}" /E /I /Y 2>> "%TEMP%\\atomx-install-log.txt"
-
-            echo Installation completed >> "%TEMP%\\atomx-install-log.txt"
-            exit
-              `.trim()
-
-              // Добавьте дополнительное логирование перед запуском скрипта
-            } else {
-              // macOS/Linux: используем bash-скрипт
-              scriptPath = path.join(tempDir, 'install.sh')
-              scriptContent = `
-#!/bin/bash
-mkdir -p "${systemCepPath}"
-rm -rf "${extensionDir}"
-mkdir -p "${extensionDir}"
-cp -R "${extractDir}/"* "${extensionDir}/"
-              `.trim()
-
-              // Делаем скрипт исполняемым
-              fs.chmodSync(scriptPath, '755')
-            }
-
-            fs.writeFileSync(scriptPath, scriptContent)
-            console.log('Script path:', scriptPath)
-            console.log('Script content:', scriptContent)
-
-            // Проверьте, что скрипт создан успешно
-            if (!fs.existsSync(scriptPath)) {
-              throw new Error(`Failed to create script at ${scriptPath}`)
-            }
-            // Запускаем скрипт с повышенными правами
-            try {
-              await new Promise<void>((resolve, reject) => {
-                console.log('Executing script with elevated privileges...')
-
-                exec(
-                  `"${scriptPath}"`, // Заключите путь в кавычки
-                  {
-                    name: 'AtomX Installer',
-                    // Добавьте дополнительные опции для Windows
-                    ...(process.platform === 'win32'
-                      ? { windowsVerbatimArguments: true }
-                      : {})
-                  },
-                  (error, stdout, stderr) => {
-                    if (error) {
-                      console.error('Error executing script:', error)
-                      console.error('Stdout:', stdout)
-                      console.error('Stderr:', stderr)
-                      reject(error)
-                    } else {
-                      console.log('Script executed successfully')
-                      console.log('Stdout:', stdout)
-                      resolve()
-                    }
-                  }
-                )
-              })
-
-              // Удаляем временные файлы
-              try {
-                fs.unlinkSync(zxpPath)
-                fs.unlinkSync(scriptPath)
-                fs.rmSync(extractDir, { recursive: true, force: true })
-              } catch (e) {
-                console.error('Ошибка при удалении временных файлов:', e)
-              }
-
-              event.sender.send('extension-installed', {
-                success: true,
-                path: extensionDir,
-                elevated: true
-              })
-              return
-            } catch (sudoError) {
-              console.error(
-                'Ошибка при выполнении команды с повышенными правами:',
-                sudoError
-              )
-              throw new Error(
-                `Failed to install extension: ${sudoError instanceof Error ? sudoError.message : 'Unknown error'}`
-              )
-            }
-          }
-        }
-
-        // Если у нас есть права на запись, продолжаем обычную установку
-        console.log(`Installing to: ${extensionDir}`)
-
-        // 4. Удаляем существующую папку расширения, если она есть
+        // 3. Удаляем существующую папку расширения, если она есть
         if (fs.existsSync(extensionDir)) {
           fs.rmSync(extensionDir, { recursive: true, force: true })
         }
 
-        // 5. Создаем директорию для расширения
+        // 4. Создаем директорию для расширения
         fs.mkdirSync(extensionDir, { recursive: true })
 
-        // 6. Проверяем, что файл существует и имеет ненулевой размер
+        // 5. Проверяем, что файл существует и имеет ненулевой размер
         if (!fs.existsSync(zxpPath) || fs.statSync(zxpPath).size === 0) {
           throw new Error('Downloaded file is empty or does not exist')
         }
 
-        // 7. Распаковываем ZXP архив с дополнительной проверкой
+        // 6. Распаковываем ZXP архив с дополнительной проверкой
         try {
           const zip = new AdmZip(zxpPath)
           zip.extractAllTo(extensionDir, true)
@@ -280,12 +70,12 @@ cp -R "${extractDir}/"* "${extensionDir}/"
           }
         }
 
-        // 8. Удаляем временный ZXP файл
+        // 7. Удаляем временный ZXP файл
         fs.unlinkSync(zxpPath)
 
         console.log('Installation completed successfully')
 
-        // 9. Отправляем сообщение об успешной установке
+        // 8. Отправляем сообщение об успешной установке
         const result = { success: true, path: extensionDir }
         console.log('Sending installation result:', result)
         event.sender.send('extension-installed', result)
@@ -309,149 +99,32 @@ cp -R "${extractDir}/"* "${extensionDir}/"
   })
 
   ipcMain.on('uninstall-extension', async (event) => {
+    const url = EXTENSION_URL
     const extensionName = EXTENSION_NAME
-    console.log(`Received request to uninstall: ${extensionName}`)
+    console.log(`Received request to uninstall: ${url}, ${extensionName}`)
 
     try {
-      // Определяем пути к директориям расширений Adobe CEP
-      const systemCepPath = getSystemCEPPath()
-      const userCepPath = getUserCEPPath()
+      const cepPath = getCEPExtensionsPath()
+      const extensionDir = path.join(cepPath, extensionName)
 
-      // Проверяем наличие расширения в обеих директориях
-      const systemExtensionDir = path.join(systemCepPath, extensionName)
-      const userExtensionDir = path.join(userCepPath, extensionName)
-      const versionFile = getVersionFilePath()
+      const getVersionalizeFile = getVersionFilePath()
 
-      const systemExists = fs.existsSync(systemExtensionDir)
-      const userExists = fs.existsSync(userExtensionDir)
-
-      console.log(`System extension exists: ${systemExists}`)
-      console.log(`User extension exists: ${userExists}`)
-
-      // Если расширение установлено в системной директории
-      if (systemExists) {
-        // Проверяем, есть ли права на запись
-        const hasSystemWriteAccess = checkWriteAccess(systemCepPath)
-
-        if (!hasSystemWriteAccess) {
-          console.log('No write access to system CEP directory')
-
-          // Показываем диалог пользователю
-          const { response } = await dialog.showMessageBox({
-            type: 'question',
-            buttons: ['Delete with administrator rights', 'Cancel'],
-            defaultId: 0,
-            title: 'Access rights required',
-            message:
-              'Administrator rights are required to remove an extension from the system directory.',
-            detail: 'Allow the application to perform this operation?'
-          })
-
-          if (response === 1) {
-            // Отмена
-            throw new Error('Удаление отменено пользователем')
-          }
-
-          // Создаем скрипт для удаления с повышенными правами
-          const tempDir = path.join(os.tmpdir(), 'adobe-extensions')
-          if (!fs.existsSync(tempDir)) {
-            fs.mkdirSync(tempDir, { recursive: true })
-          }
-
-          let scriptPath: string
-          let scriptContent: string
-
-          if (process.platform === 'win32') {
-            // Windows: используем bat-файл
-            scriptPath = path.join(tempDir, 'uninstall.bat')
-            scriptContent = `
-@echo off
-if exist "${systemExtensionDir}" rmdir /s /q "${systemExtensionDir}"
-if exist "${versionFile}" del "${versionFile}"
-exit
-            `.trim()
-          } else {
-            // macOS/Linux: используем bash-скрипт
-            scriptPath = path.join(tempDir, 'uninstall.sh')
-            scriptContent = `
-#!/bin/bash
-rm -rf "${systemExtensionDir}"
-rm -f "${versionFile}"
-            `.trim()
-
-            // Делаем скрипт исполняемым
-            fs.chmodSync(scriptPath, '755')
-          }
-
-          fs.writeFileSync(scriptPath, scriptContent)
-
-          // Запускаем скрипт с повышенными правами
-          try {
-            await new Promise<void>((resolve, reject) => {
-              exec(scriptPath, { name: 'AtomX Installer' }, (error) => {
-                if (error) {
-                  console.error('Ошибка при выполнении команды:', error)
-                  reject(error)
-                } else {
-                  console.log('Удаление завершено успешно')
-                  resolve()
-                }
-              })
-            })
-
-            // Удаляем временный скрипт
-            try {
-              fs.unlinkSync(scriptPath)
-            } catch (e) {
-              console.error('Ошибка при удалении временного файла:', e)
-            }
-
-            event.sender.send('extension-uninstalled', {
-              success: true,
-              path: systemExtensionDir,
-              elevated: true
-            })
-            return
-          } catch (sudoError) {
-            console.error(
-              'Ошибка при выполнении команды с повышенными правами:',
-              sudoError
-            )
-            throw new Error(
-              `Failed to remove extension: ${sudoError instanceof Error ? sudoError.message : 'Unknown error'}`
-            )
-          }
-        }
-
-        // Если у нас есть права на запись, удаляем обычным способом
-        fs.rmSync(systemExtensionDir, { recursive: true, force: true })
-        console.log(`Removed system extension: ${systemExtensionDir}`)
+      // Удаляем расширение (всю папку)
+      if (fs.existsSync(extensionDir)) {
+        fs.rmSync(extensionDir, { recursive: true, force: true })
       }
-
-      // Если расширение установлено в пользовательской директории
-      if (userExists) {
-        fs.rmSync(userExtensionDir, { recursive: true, force: true })
-        console.log(`Removed user extension: ${userExtensionDir}`)
-      }
-
       // Удаляем файл версионизации
-      if (fs.existsSync(versionFile)) {
-        fs.rmSync(versionFile, { force: true })
-        console.log(`Removed version file: ${versionFile}`)
+      if (fs.existsSync(getVersionalizeFile)) {
+        fs.rmSync(getVersionalizeFile, { force: true })
       }
-
       console.log('Uninstallation completed successfully')
 
-      // Отправляем сообщение об успешном удалении
-      const result = {
-        success: true,
-        systemPath: systemExists ? systemExtensionDir : null,
-        userPath: userExists ? userExtensionDir : null
-      }
+      // 7. Отправляем сообщение об успешном удалении
+      const result = { success: true, path: extensionDir }
       console.log('Sending uninstallation result:', result)
       event.sender.send('extension-uninstalled', result)
     } catch (error) {
-      console.error('Error during uninstallation:', error)
+      console.error('Error during installation:', error)
       const errorResult = {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
@@ -554,11 +227,19 @@ function downloadFile(
   })
 }
 
-function getSystemCEPPath(): string {
+// // Функция для определения пути к директории расширений Adobe CEP
+function getCEPExtensionsPath(): string {
   const platform = os.platform()
+  const homeDir = os.homedir()
 
   if (platform === 'win32') {
-    return path.join(
+    const userPath = path.join(
+      process.env.APPDATA || '',
+      'Adobe',
+      'CEP',
+      'extensions'
+    )
+    const systemPath = path.join(
       'C:',
       'Program Files (x86)',
       'Common Files',
@@ -566,51 +247,28 @@ function getSystemCEPPath(): string {
       'CEP',
       'extensions'
     )
-  } else if (platform === 'darwin') {
-    return path.join(
-      '/',
-      'Library',
-      'Application Support',
-      'Adobe',
-      'CEP',
-      'extensions'
-    )
-  } else {
-    // Linux или другие платформы (не поддерживаются официально Adobe)
-    throw new Error('Unsupported OS')
-  }
-}
 
-// Функция для проверки прав на запись
-function checkWriteAccess(dirPath: string): boolean {
-  try {
-    // Проверяем, существует ли директория
-    if (!fs.existsSync(dirPath)) {
-      // Пробуем создать директорию
+    // Проверяем существование системного пути
+    if (fs.existsSync(systemPath)) {
       try {
-        fs.mkdirSync(dirPath, { recursive: true })
-        return true
-      } catch (e) {
-        return false
+        // Проверяем, есть ли права на запись
+        fs.accessSync(systemPath, fs.constants.W_OK)
+        return systemPath
+      } catch (error) {
+        // Если нет прав на запись в системный путь, используем пользовательский
+        console.log('Нет прав на запись в системный путь CEP')
       }
     }
 
-    // Проверяем права на запись
-    fs.accessSync(dirPath, fs.constants.W_OK)
-    return true
-  } catch (error) {
-    return false
-  }
-}
+    // Создаем пользовательский путь, если он не существует
+    if (!fs.existsSync(userPath)) {
+      fs.mkdirSync(userPath, { recursive: true })
+    }
 
-function getUserCEPPath(): string {
-  const platform = os.platform()
-  const homeDir = os.homedir()
-
-  if (platform === 'win32') {
-    return path.join(process.env.APPDATA || '', 'Adobe', 'CEP', 'extensions')
+    return systemPath
   } else if (platform === 'darwin') {
-    return path.join(
+    // macOS: /Users/{username}/Library/Application Support/Adobe/CEP/extensions
+    const userPath = path.join(
       homeDir,
       'Library',
       'Application Support',
@@ -618,64 +276,35 @@ function getUserCEPPath(): string {
       'CEP',
       'extensions'
     )
+    const systemPath = path.join(
+      '/',
+      'Library',
+      'Application Support',
+      'Adobe',
+      'CEP',
+      'extensions'
+    )
+
+    // Проверяем существование системного пути
+    if (fs.existsSync(systemPath)) {
+      try {
+        // Проверяем, есть ли права на запись
+        fs.accessSync(systemPath, fs.constants.W_OK)
+        return systemPath
+      } catch (error) {
+        // Если нет прав на запись в системный путь, используем пользовательский
+        console.log('Нет прав на запись в системный путь CEP')
+      }
+    }
+
+    // Создаем путь, если он не существует
+    if (!fs.existsSync(userPath)) {
+      fs.mkdirSync(userPath, { recursive: true })
+    }
+
+    return userPath
   } else {
     // Linux или другие платформы (не поддерживаются официально Adobe)
     throw new Error('Unsupported OS')
   }
 }
-
-// // Функция для определения пути к директории расширений Adobe CEP
-// function getCEPExtensionsPath(): string {
-//   const platform = os.platform()
-//   const homeDir = os.homedir()
-
-//   if (platform === 'win32') {
-//     const systemPath = path.join(
-//       'C:',
-//       'Program Files (x86)',
-//       'Common Files',
-//       'Adobe',
-//       'CEP',
-//       'extensions'
-//     )
-
-//     // Проверяем существование системного пути
-//     if (fs.existsSync(systemPath)) {
-//       try {
-//         // Проверяем, есть ли права на запись
-//         fs.accessSync(systemPath, fs.constants.W_OK)
-//         return systemPath
-//       } catch (error) {
-//         // Если нет прав на запись в системный путь, используем пользовательский
-//         console.log('Нет прав на запись в системный путь CEP')
-//       }
-//     }
-
-//     // Создаем пользовательский путь, если он не существует
-//     if (!fs.existsSync(systemPath)) {
-//       fs.mkdirSync(systemPath, { recursive: true })
-//     }
-
-//     return systemPath
-//   } else if (platform === 'darwin') {
-//     // macOS: /Users/{username}/Library/Application Support/Adobe/CEP/extensions
-//     const userPath = path.join(
-//       homeDir,
-//       'Library',
-//       'Application Support',
-//       'Adobe',
-//       'CEP',
-//       'extensions'
-//     )
-
-//     // Создаем путь, если он не существует
-//     if (!fs.existsSync(userPath)) {
-//       fs.mkdirSync(userPath, { recursive: true })
-//     }
-
-//     return userPath
-//   } else {
-//     // Linux или другие платформы (не поддерживаются официально Adobe)
-//     throw new Error('Unsupported OS')
-//   }
-// }

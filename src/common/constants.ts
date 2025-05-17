@@ -6,8 +6,11 @@ const BASE_API_URL = 'https://api.get-atomx.com/atomx/v1/'
 // Функция для создания URL с параметром ext_name
 const createUrlWithExtName = (slug: string, link_slug: string | null) => {
   const url = new URL(slug, BASE_API_URL).toString()
+  const authorNameUrlConvert = encodeURIComponent(AUTHOR_NAME)
   const assignAuthor =
-    slug == 'author' ? `name=${AUTHOR_NAME}` : `king=${AUTHOR_NAME}`
+    slug == 'author'
+      ? `name=${authorNameUrlConvert}`
+      : `king=${authorNameUrlConvert}`
   const pPath = slug == 'link' ? `&goto=${link_slug}` : ''
 
   return `${url}?${assignAuthor}${pPath}`

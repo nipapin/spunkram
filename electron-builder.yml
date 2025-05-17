@@ -22,9 +22,16 @@ win:
   executableName: AtomX-Installer
   icon: build/icon.ico
   target:
-    - target: nsis
+    # - target: nsis
+    #   arch:
+    #     - x64
+    - target: portable
       arch:
         - x64
+portable:
+  artifactName: ${productName}-${version}-portable.${ext}
+  requestExecutionLevel: user # или admin, если требуются права администратора // def: user
+  splashImage: build/icon.png # опционально: изображение для заставки
 nsis:
   artifactName: ${productName}-${version}-setup.${ext}
   shortcutName: ${productName}

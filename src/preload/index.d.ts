@@ -14,7 +14,7 @@ interface ElectronAPI {
   // Version management
   getRemoteVersions: () => Promise<VersionData>
   getLocalVersion: () => Promise<LocalVersion | null>
-  saveLocalVersion: (version: string) => Promise<boolean>
+  saveLocalVersion: (version: string, groupName: string) => Promise<boolean>
   checkUpdateStatus: () => Promise<UpdateStatus>
 
   // Extension download and installation

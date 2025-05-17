@@ -44,12 +44,6 @@ onBeforeUnmount(() => {
 
 const objectUpdateData = ref()
 
-const checkIsBetaVersion = computed(() => {
-  return (
-    objectUpdateData.value.currentVersion == objectUpdateData.value.latestBeta
-  )
-})
-
 const checkLatestVersion = computed(() => {
   return (
     objectUpdateData.value.currentVersion ===
@@ -93,12 +87,13 @@ const uninstallExtension = async () => {
   }
 }
 
-const installExtension = async (version?: string) => {
+const installExtension = async (version?: string, groupName?: string) => {
   if (isLoading.value) return
   downloadProgress.value = 0
   isLoading.value = true
   currentState.value = version ? 'update' : 'not-installed'
-
+  objectUpdateData.value.versionManually = version ?? null
+  objectUpdateData.value.currentGroup = groupName ?? 'stable'
   try {
     // Отписываемся от предыдущих обновлений, если они есть
     if (progressUnsubscribe) {
@@ -124,7 +119,8 @@ const installExtension = async (version?: string) => {
         isLoading.value = false
         if (result && result.success) {
           window.api.saveLocalVersion(
-            version ?? objectUpdateData.value.latestVersion
+            version ?? objectUpdateData.value.latestVersion,
+            groupName ?? 'stable'
           )
           objectUpdateData.value.currentVersion =
             version ?? objectUpdateData.value.latestVersion
@@ -207,9 +203,9 @@ const strokeOffset = computed(
           'text-warning': !checkLatestVersion
         }"
       >
-        <span v-if="!checkIsBetaVersion" class="block">{{
+        <span v-if="objectUpdateData.currentGroup == 'stable'" class="block">{{
           checkLatestVersion
-            ? 'You have latest version!'
+            ? 'You have the latest version!'
             : `Version ${objectUpdateData.currentVersion} is out of date!`
         }}</span>
 
@@ -221,7 +217,10 @@ const strokeOffset = computed(
         class="font-mono text-xl font-semibold text-primary-500 absolute text-center text-nowrap"
       >
         <span class="block"
-          >Downloading version {{ objectUpdateData.currentVersion }}</span
+          >Downloading version
+          {{
+            objectUpdateData.versionManually ?? objectUpdateData.currentVersion
+          }}</span
         >
       </div>
       <!-- Состояние 3: Ошибка -->
@@ -374,7 +373,9 @@ const strokeOffset = computed(
     </div>
   </div>
   <span
-    v-if="currentState === 'installed' && checkIsBetaVersion"
+    v-if="
+      currentState === 'installed' && objectUpdateData.currentGroup != 'stable'
+    "
     class="text-gray-500 mt-2 text-center text-sm"
     >You have a beta version installed to test new features. <br />If you find a
     bug, please report it, or use a stable version.</span
