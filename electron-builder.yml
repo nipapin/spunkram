@@ -1,5 +1,5 @@
-appId: com.atomx.installer
-productName: AtomX Installer
+appId: com.atomx.manager
+productName: AtomX Manager
 directories:
   buildResources: build
 files:
@@ -14,12 +14,12 @@ files:
   - '!**/node_modules/.bin'
   - '!**/*.{spec,test}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
   - '!**/node_modules/**/{.editorconfig,.eslintrc.js,.eslintrc.cjs,.eslintrc.json,.eslintrc,.eslintignore,.gitattributes,.gitignore,.npmignore,.prettierrc,.prettierrc.js,.prettierrc.json,.prettierrc.yaml,.prettierrc.yml}'
-compression: maximum
+compression: normal
 asar: true
 asarUnpack:
   - resources/**
 win:
-  executableName: AtomX-Installer
+  executableName: AtomX-Manager
   icon: build/icon.ico
   target:
     # - target: nsis
@@ -29,7 +29,7 @@ win:
       arch:
         - x64
 portable:
-  artifactName: ${productName}-${version}-portable.${ext}
+  artifactName: ${productName}_${version}_portable.${ext}
   requestExecutionLevel: user # или admin, если требуются права администратора // def: user
   splashImage: build/icon.png # опционально: изображение для заставки
 nsis:

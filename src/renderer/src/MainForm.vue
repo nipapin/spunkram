@@ -26,7 +26,7 @@ watch(installationStatus, (newValue) => {
     }, 3000)
   }
 })
-
+const objectUpdateData = ref()
 onMounted(async () => {
   const checkUpdateStatus = await window.api.checkUpdateStatus()
   objectUpdateData.value = checkUpdateStatus
@@ -41,8 +41,6 @@ onBeforeUnmount(() => {
     progressUnsubscribe()
   }
 })
-
-const objectUpdateData = ref()
 
 const checkLatestVersion = computed(() => {
   return (
@@ -87,13 +85,17 @@ const uninstallExtension = async () => {
   }
 }
 
-const installExtension = async (version?: string, groupName?: string) => {
+const installExtension = (version?: string, groupName?: string) => {
   if (isLoading.value) return
   downloadProgress.value = 0
   isLoading.value = true
   currentState.value = version ? 'update' : 'not-installed'
-  objectUpdateData.value.versionManually = version ?? null
-  objectUpdateData.value.currentGroup = groupName ?? 'stable'
+
+  if (version) {
+    objectUpdateData.value.currentVersion = version ?? null
+    objectUpdateData.value.currentGroup = groupName ?? 'stable'
+  }
+
   try {
     // Отписываемся от предыдущих обновлений, если они есть
     if (progressUnsubscribe) {
@@ -217,10 +219,7 @@ const strokeOffset = computed(
         class="font-mono text-xl font-semibold text-primary-500 absolute text-center text-nowrap"
       >
         <span class="block"
-          >Downloading version
-          {{
-            objectUpdateData.versionManually ?? objectUpdateData.currentVersion
-          }}</span
+          >Downloading version {{ objectUpdateData.currentVersion }}</span
         >
       </div>
       <!-- Состояние 3: Ошибка -->
