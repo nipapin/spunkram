@@ -39,18 +39,18 @@ export function setupDownloadHandlers() {
         console.log('Download completed, installing...')
 
         // 2. Определяем путь к директории расширений Adobe CEP
-        const cepPath = getCEPExtensionsPath()
-        const extensionDir = path.join(cepPath, extensionName)
+
+        const extensionDir = getCEPExtensionsPath(extensionName, true)
 
         console.log(`Will install to: ${extensionDir}`)
 
         // 3. Удаляем существующую папку расширения, если она есть
-        if (fs.existsSync(extensionDir)) {
-          fs.rmSync(extensionDir, { recursive: true, force: true })
-        }
+        // if (fs.existsSync(extensionDir)) {
+        //   fs.rmSync(extensionDir, { recursive: true, force: true })
+        // }
 
-        // 4. Создаем директорию для расширения
-        fs.mkdirSync(extensionDir, { recursive: true })
+        // // 4. Создаем директорию для расширения
+        // fs.mkdirSync(extensionDir, { recursive: true })
 
         // 5. Проверяем, что файл существует и имеет ненулевой размер
         if (!fs.existsSync(zxpPath) || fs.statSync(zxpPath).size === 0) {
@@ -104,15 +104,14 @@ export function setupDownloadHandlers() {
     console.log(`Received request to uninstall: ${url}, ${extensionName}`)
 
     try {
-      const cepPath = getCEPExtensionsPath()
-      const extensionDir = path.join(cepPath, extensionName)
+      const extensionDir = getCEPExtensionsPath(extensionName, false)
 
       const getVersionalizeFile = getVersionFilePath()
 
       // Удаляем расширение (всю папку)
-      if (fs.existsSync(extensionDir)) {
-        fs.rmSync(extensionDir, { recursive: true, force: true })
-      }
+      // if (fs.existsSync(extensionDir)) {
+      //   fs.rmSync(extensionDir, { recursive: true, force: true })
+      // }
       // Удаляем файл версионизации
       if (fs.existsSync(getVersionalizeFile)) {
         fs.rmSync(getVersionalizeFile, { force: true })
@@ -228,7 +227,10 @@ function downloadFile(
 }
 
 // // Функция для определения пути к директории расширений Adobe CEP
-function getCEPExtensionsPath(): string {
+function getCEPExtensionsPath(
+  extensionName: string,
+  createFolder: boolean
+): string {
   const platform = os.platform()
   const homeDir = os.homedir()
 
@@ -237,7 +239,8 @@ function getCEPExtensionsPath(): string {
       process.env.APPDATA || '',
       'Adobe',
       'CEP',
-      'extensions'
+      'extensions',
+      extensionName
     )
     const systemPath = path.join(
       'C:',
@@ -245,27 +248,11 @@ function getCEPExtensionsPath(): string {
       'Common Files',
       'Adobe',
       'CEP',
-      'extensions'
+      'extensions',
+      extensionName
     )
 
-    // Проверяем существование системного пути
-    if (fs.existsSync(systemPath)) {
-      try {
-        // Проверяем, есть ли права на запись
-        fs.accessSync(systemPath, fs.constants.W_OK)
-        return systemPath
-      } catch (error) {
-        // Если нет прав на запись в системный путь, используем пользовательский
-        console.log('Нет прав на запись в системный путь CEP')
-      }
-    }
-
-    // Создаем пользовательский путь, если он не существует
-    if (!fs.existsSync(userPath)) {
-      fs.mkdirSync(userPath, { recursive: true })
-    }
-
-    return systemPath
+    return extFolderActions(systemPath, userPath, createFolder)
   } else if (platform === 'darwin') {
     // macOS: /Users/{username}/Library/Application Support/Adobe/CEP/extensions
     const userPath = path.join(
@@ -274,7 +261,8 @@ function getCEPExtensionsPath(): string {
       'Application Support',
       'Adobe',
       'CEP',
-      'extensions'
+      'extensions',
+      extensionName
     )
     const systemPath = path.join(
       '/',
@@ -282,29 +270,45 @@ function getCEPExtensionsPath(): string {
       'Application Support',
       'Adobe',
       'CEP',
-      'extensions'
+      'extensions',
+      extensionName
     )
 
-    // Проверяем существование системного пути
-    if (fs.existsSync(systemPath)) {
-      try {
-        // Проверяем, есть ли права на запись
-        fs.accessSync(systemPath, fs.constants.W_OK)
-        return systemPath
-      } catch (error) {
-        // Если нет прав на запись в системный путь, используем пользовательский
-        console.log('Нет прав на запись в системный путь CEP')
-      }
-    }
-
-    // Создаем путь, если он не существует
-    if (!fs.existsSync(userPath)) {
-      fs.mkdirSync(userPath, { recursive: true })
-    }
-
-    return userPath
+    return extFolderActions(systemPath, userPath, createFolder)
   } else {
     // Linux или другие платформы (не поддерживаются официально Adobe)
     throw new Error('Unsupported OS')
   }
+}
+
+function extFolderActions(
+  systemPath: string,
+  userPath: string,
+  createFolder: boolean
+) {
+  if (fs.existsSync(systemPath)) {
+    try {
+      // Проверяем, есть ли права на запись
+      fs.accessSync(systemPath, fs.constants.W_OK)
+      fs.rmSync(systemPath, { recursive: true, force: true })
+      if (createFolder && !fs.existsSync(systemPath)) {
+        fs.mkdirSync(systemPath, { recursive: true })
+      }
+      return systemPath
+    } catch (error) {
+      // Если нет прав на запись в системный путь, используем пользовательский
+      console.log('Нет прав на запись в системный путь CEP')
+    }
+  }
+
+  // Удаляем папку прошлого расширения если есть
+  if (fs.existsSync(userPath)) {
+    fs.rmSync(userPath, { recursive: true, force: true })
+  }
+
+  // Создаем пользовательский путь, если он не существует
+  if (createFolder && !fs.existsSync(userPath)) {
+    fs.mkdirSync(userPath, { recursive: true })
+  }
+  return userPath
 }
