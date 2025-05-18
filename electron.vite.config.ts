@@ -7,6 +7,7 @@ import {
 import vue from '@vitejs/plugin-vue'
 import tailwindcss from 'tailwindcss'
 import autoprefixer from 'autoprefixer'
+import pkg from './package.json'
 
 export default defineConfig({
   main: {
@@ -21,6 +22,11 @@ export default defineConfig({
     plugins: [externalizeDepsPlugin(), bytecodePlugin()]
   },
   renderer: {
+    define: {
+      'process.env.PACKAGE_NAME': JSON.stringify(pkg.name),
+      'process.env.PACKAGE_VERSION': JSON.stringify(pkg.version),
+      'process.env.PACKAGE_PRODUCT_NAME': JSON.stringify(pkg.productName)
+    },
     resolve: {
       alias: {
         '@renderer': resolve('src/renderer/src'),

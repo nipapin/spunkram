@@ -20,11 +20,27 @@ function createWindow(): void {
     show: false,
     autoHideMenuBar: true,
     ...(process.platform === 'linux' ? { icon } : {}),
+    // webPreferences: {
+    //   preload: preloadPath,
+    //   nodeIntegration: false,
+    //   contextIsolation: true,
+    //   sandbox: false
+    // }
+
     webPreferences: {
       preload: preloadPath,
       nodeIntegration: false,
       contextIsolation: true,
-      sandbox: false
+      sandbox: false,
+      // другие настройки...
+      partition: 'persist:app', // Использование отдельного хранилища
+      // В production режиме отключаем кэширование
+      ...(process.env.NODE_ENV === 'production'
+        ? {
+            webSecurity: true,
+            allowRunningInsecureContent: false
+          }
+        : {})
     }
   })
 

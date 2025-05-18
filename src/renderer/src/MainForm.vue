@@ -211,7 +211,7 @@ const strokeOffset = computed(
         }"
       >
         <span v-if="objectOriginData.currentGroup == 'beta'"
-          >Test beta version installed</span
+          >{{ objectOriginData.currentVersion }} beta version installed</span
         >
         <span v-else class="block">{{
           checkLatestVersion
@@ -369,6 +369,7 @@ const strokeOffset = computed(
           v-if="currentState == 'installed'"
           :versions="objectOriginData.versions"
           :current="objectOriginData.currentVersion"
+          :group="objectOriginData.currentGroup"
           :latest-version="objectOriginData.latestVersion"
           :check-latest="checkLatestVersion"
           @download-version="installExtension"

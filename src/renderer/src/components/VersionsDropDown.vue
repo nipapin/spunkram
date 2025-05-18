@@ -14,6 +14,10 @@ defineProps({
     type: String,
     required: true
   },
+  group: {
+    type: String,
+    required: false
+  },
   checkLatest: {
     type: Boolean,
     required: true
@@ -90,7 +94,8 @@ onBeforeUnmount(() => {
             />
           </svg>
 
-          Update to {{ latestVersion }}
+          <div v-if="group == 'beta'">Install Stable {{ latestVersion }}</div>
+          <div v-else>Update to {{ latestVersion }}</div>
         </template>
         <template v-else> Version {{ current }} </template>
       </button>
