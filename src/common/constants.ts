@@ -9,8 +9,8 @@ const createUrlWithExtName = (slug: string, link_slug: string | null) => {
   const authorNameUrlConvert = encodeURIComponent(AUTHOR_NAME)
   const assignAuthor =
     slug == 'author'
-      ? `name=${AUTHOR_NAME.replace(' ', '%20')}`
-      : `king=${AUTHOR_NAME.replace(' ', '%20')}`
+      ? `name=${authorNameUrlConvert}`
+      : `king=${authorNameUrlConvert}`
   const pPath = slug == 'link' ? `&goto=${link_slug}` : ''
 
   return `${url}?${assignAuthor}${pPath}`
