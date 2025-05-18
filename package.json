@@ -20,7 +20,8 @@
     "build:mac": "npm run build && electron-builder --mac",
     "build:linux": "npm run build && electron-builder --linux",
     "build:p:win": "npx electron-builder --win portable",
-    "build:p:mac": "npx electron-builder --mac portable"
+    "build:p:mac": "npx electron-builder --mac portable",
+    "clean": "rimraf dist && rimraf .electron-vue/build && rimraf node_modules/.cache"
   },
   "build": {
     "npmArgs": [

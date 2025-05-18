@@ -50,6 +50,20 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  // Очистка кэша при запуске
+  // await app.getPath('userData')
+  // await session.defaultSession.clearCache()
+  // await session.defaultSession.clearStorageData({
+  //   storages: [
+  //     'cookies',
+  //     'filesystem',
+  //     'indexdb',
+  //     'localstorage',
+  //     'shadercache',
+  //     'websql',
+  //     'serviceworkers'
+  //   ]
+  // })
   // Set app user model id for windows
   electronApp.setAppUserModelId('com.electron')
 
