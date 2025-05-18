@@ -13,8 +13,8 @@ if (process.contextIsolated) {
       // Version management
       getRemoteVersions: () => ipcRenderer.invoke('get-remote-versions'),
       getLocalVersion: () => ipcRenderer.invoke('get-local-version'),
-      saveLocalVersion: (version: string) =>
-        ipcRenderer.invoke('save-local-version', version),
+      saveLocalVersion: (version: string, groupName: string) =>
+        ipcRenderer.invoke('save-local-version', version, groupName),
       checkUpdateStatus: () => ipcRenderer.invoke('check-update-status'),
 
       // Download / update extension

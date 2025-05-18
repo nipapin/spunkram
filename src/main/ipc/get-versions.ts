@@ -111,26 +111,30 @@ export function registerVersionHandlers() {
   })
 
   // Save local version to file
-  ipcMain.handle('save-local-version', async (_, version: string) => {
-    try {
-      const versionFilePath = getVersionFilePath()
-      console.log('versionFilePath', versionFilePath)
-      const versionData: LocalVersion = {
-        version,
-        installedAt: new Date().toISOString()
-      }
+  ipcMain.handle(
+    'save-local-version',
+    async (_, version: string, groupName: string) => {
+      try {
+        const versionFilePath = getVersionFilePath()
+        console.log('versionFilePath', versionFilePath)
+        const versionData: LocalVersion = {
+          version,
+          group: groupName,
+          installedAt: new Date().toISOString()
+        }
 
-      await writeFile(
-        versionFilePath,
-        JSON.stringify(versionData, null, 2),
-        'utf-8'
-      )
-      return true
-    } catch (error) {
-      console.error('Failed to save local version:', error)
-      throw new Error('Failed to save local version data')
+        await writeFile(
+          versionFilePath,
+          JSON.stringify(versionData, null, 2),
+          'utf-8'
+        )
+        return true
+      } catch (error) {
+        console.error('Failed to save local version:', error)
+        throw new Error('Failed to save local version data')
+      }
     }
-  })
+  )
 
   // Compare versions and check update status
   ipcMain.handle('check-update-status', async () => {
@@ -154,6 +158,7 @@ export function registerVersionHandlers() {
           installed: false,
           updateAvailable: false,
           currentVersion: null,
+          currentGroup: null,
           versions: remoteVersions.list,
           latestVersion: remoteVersions.fixed.stable,
           latestBeta: remoteVersions.fixed.beta
@@ -161,6 +166,7 @@ export function registerVersionHandlers() {
       }
 
       const currentVersion = localVersionData.version
+      const currentGroup = localVersionData.group
       // const latestStable = remoteVersions.fixed.stable
       // const latestBeta = remoteVersions.fixed.beta
 
@@ -168,6 +174,7 @@ export function registerVersionHandlers() {
         installed: true,
         updateAvailable: !remoteVersions.fixed.stable.includes(currentVersion),
         currentVersion,
+        currentGroup,
         versions: remoteVersions.list,
         latestVersion: remoteVersions.fixed.stable,
         latestBeta: remoteVersions.fixed.beta

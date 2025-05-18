@@ -26,11 +26,11 @@ watch(installationStatus, (newValue) => {
     }, 3000)
   }
 })
-
+const objectOriginData = ref()
 onMounted(async () => {
-  const checkUpdateStatus = await window.api.checkUpdateStatus()
-  objectUpdateData.value = checkUpdateStatus
-  currentState.value = checkUpdateStatus.installed
+  const getUpdaterVersionData = await window.api.checkUpdateStatus()
+  objectOriginData.value = getUpdaterVersionData
+  currentState.value = getUpdaterVersionData.installed
     ? 'installed'
     : 'not-installed'
 })
@@ -42,18 +42,10 @@ onBeforeUnmount(() => {
   }
 })
 
-const objectUpdateData = ref()
-
-const checkIsBetaVersion = computed(() => {
-  return (
-    objectUpdateData.value.currentVersion == objectUpdateData.value.latestBeta
-  )
-})
-
 const checkLatestVersion = computed(() => {
   return (
-    objectUpdateData.value.currentVersion ===
-    objectUpdateData.value.latestVersion
+    objectOriginData.value.currentVersion ===
+    objectOriginData.value.latestVersion
   )
 })
 
@@ -75,6 +67,11 @@ const uninstallExtension = async () => {
       isLoading.value = false
       if (result && result.success) {
         setTimeout(() => {
+          objectOriginData.value = {
+            ...objectOriginData.value,
+            currentGroup: null,
+            currentVersion: null
+          }
           installationStatus.value = 'The extension has been uninstalled!'
           currentState.value = 'uninstalled'
         }, 500)
@@ -93,11 +90,16 @@ const uninstallExtension = async () => {
   }
 }
 
-const installExtension = async (version?: string) => {
+const installExtension = (version?: string, groupName?: string) => {
   if (isLoading.value) return
   downloadProgress.value = 0
   isLoading.value = true
   currentState.value = version ? 'update' : 'not-installed'
+
+  if (version) {
+    objectOriginData.value.currentVersion = version ?? null
+    objectOriginData.value.currentGroup = groupName ?? 'stable'
+  }
 
   try {
     // Отписываемся от предыдущих обновлений, если они есть
@@ -124,10 +126,11 @@ const installExtension = async (version?: string) => {
         isLoading.value = false
         if (result && result.success) {
           window.api.saveLocalVersion(
-            version ?? objectUpdateData.value.latestVersion
+            version ?? objectOriginData.value.latestVersion,
+            groupName ?? 'stable'
           )
-          objectUpdateData.value.currentVersion =
-            version ?? objectUpdateData.value.latestVersion
+          objectOriginData.value.currentVersion =
+            version ?? objectOriginData.value.latestVersion
           setTimeout(() => {
             installationStatus.value =
               'The extension has been installed successfully!'
@@ -202,13 +205,14 @@ const strokeOffset = computed(
           'text-warning': !checkLatestVersion
         }"
       >
-        <span v-if="!checkIsBetaVersion" class="block">{{
+        <span v-if="objectOriginData.currentGroup == 'beta'"
+          >{{ objectOriginData.currentVersion }} beta version installed</span
+        >
+        <span v-else class="block">{{
           checkLatestVersion
-            ? 'You have latest version!'
-            : `Version ${objectUpdateData.currentVersion} is out of date!`
+            ? 'You have the latest version!'
+            : `Version ${objectOriginData.currentVersion} is out of date!`
         }}</span>
-
-        <span v-else>Test beta version installed</span>
       </div>
       <div
         v-if="currentState === 'update'"
@@ -216,7 +220,7 @@ const strokeOffset = computed(
         class="font-mono text-xl font-semibold text-primary-500 absolute text-center text-nowrap"
       >
         <span class="block"
-          >Downloading version {{ objectUpdateData.currentVersion }}</span
+          >Downloading version {{ objectOriginData.currentVersion }}</span
         >
       </div>
       <!-- Состояние 3: Ошибка -->
@@ -348,9 +352,10 @@ const strokeOffset = computed(
       >
         <VersionsDropDown
           v-if="currentState == 'installed'"
-          :versions="objectUpdateData.versions"
-          :current="objectUpdateData.currentVersion"
-          :latest-version="objectUpdateData.latestVersion"
+          :versions="objectOriginData.versions"
+          :current="objectOriginData.currentVersion"
+          :group="objectOriginData.currentGroup"
+          :latest-version="objectOriginData.latestVersion"
           :check-latest="checkLatestVersion"
           @download-version="installExtension"
           @uninstall="isConfirmationVisible = true"
@@ -359,7 +364,9 @@ const strokeOffset = computed(
     </div>
   </div>
   <span
-    v-if="currentState === 'installed' && checkIsBetaVersion"
+    v-if="
+      currentState === 'installed' && objectOriginData.currentGroup == 'beta'
+    "
     class="text-gray-500 mt-2 text-center text-sm"
     >You have a beta version installed to test new features. <br />If you find a
     bug, please report it, or use a stable version.</span

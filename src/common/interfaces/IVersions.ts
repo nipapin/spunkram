@@ -31,6 +31,8 @@ export interface VersionData {
 export interface LocalVersion {
   /** Номер установленной версии */
   version: string
+
+  group?: string
   /** Дата и время установки в формате ISO */
   installedAt: string
 }
@@ -44,6 +46,7 @@ export interface UpdateStatus {
   /** Текущая установленная версия или null, если не установлено */
   updateAvailable: boolean
   currentVersion: string | null
+  currentGroup: string | null
   versions: VersionList
   /** Последняя доступная стабильная версия */
   latestVersion: string

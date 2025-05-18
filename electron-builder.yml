@@ -14,17 +14,25 @@ files:
   - '!**/node_modules/.bin'
   - '!**/*.{spec,test}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
   - '!**/node_modules/**/{.editorconfig,.eslintrc.js,.eslintrc.cjs,.eslintrc.json,.eslintrc,.eslintignore,.gitattributes,.gitignore,.npmignore,.prettierrc,.prettierrc.js,.prettierrc.json,.prettierrc.yaml,.prettierrc.yml}'
-compression: maximum
-asar: true
+compression: store
+asar: false
 asarUnpack:
   - resources/**
 win:
   executableName: Odin-Pro-Installer
   icon: build/icon.ico
   target:
-    - target: nsis
+    # - target: nsis
+    #   arch:
+    #     - x64
+    - target: portable
       arch:
         - x64
+portable:
+  artifactName: ${productName}_${version}_portable.${ext}
+  requestExecutionLevel: user # или admin, если требуются права администратора // def: user
+  splashImage: build/icon.png # опционально: изображение для заставки
+  keepTemporaryPath: true # Сохраняет распакованные файлы между запусками
 nsis:
   artifactName: ${productName}-${version}-setup.${ext}
   shortcutName: ${productName}
