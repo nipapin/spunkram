@@ -1,5 +1,5 @@
-appId: com.odinpro.installer
-productName: Odin Pro Installer
+appId: com.odinpro.manager
+productName: Odin Pro Manager
 directories:
   buildResources: build
 files:
@@ -19,7 +19,7 @@ asar: false
 asarUnpack:
   - resources/**
 win:
-  executableName: Odin-Pro-Installer
+  executableName: Odin-Pro-Manager
   icon: build/icon.ico
   target:
     # - target: nsis

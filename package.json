@@ -5,6 +5,7 @@
   "main": "./out/main/index.js",
   "author": "odin-pro.com",
   "homepage": "https://odin-pro.com",
+  "productName": "Odin Pro Manager",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts,.vue --fix",

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { URL_REPORT_BUG, URL_HELP_CENTER } from '@common/constants'
+const appVersion = process.env.PACKAGE_VERSION
 </script>
 <template>
   <div
