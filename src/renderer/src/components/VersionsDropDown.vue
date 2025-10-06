@@ -71,7 +71,7 @@ onBeforeUnmount(() => {
       <button
         class="flex items-center gap-1 w-48 font-semibold rounded-full text-left p-1 ml-1 px-2"
         :class="{
-          'bg-primary-500 hover:bg-primary-600 text-white transition-colors duration-200':
+          'bg-primary-500 hover:bg-primary-600 text-black transition-colors duration-200':
             !checkLatest,
           ' text-gray-400 px-3': checkLatest
         }"
