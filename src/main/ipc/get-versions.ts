@@ -9,6 +9,10 @@ import {
   UpdateStatus,
   VersionData
 } from '@common/interfaces/IVersions'
+import {
+  findInstalledCEPExtensionPath,
+  getMissingCSBridgePlugins
+} from './cep-paths'
 
 /**
  * Helper function to make HTTPS requests
@@ -87,7 +91,6 @@ export function registerVersionHandlers() {
       const data = await httpsGet<VersionData>(URL_VERSIONS_LIST)
       return data
     } catch (error) {
-      console.error('Failed to fetch versions:', error)
       throw new Error('Failed to fetch version data from server')
     }
   })
@@ -116,7 +119,6 @@ export function registerVersionHandlers() {
     async (_, version: string, groupName: string) => {
       try {
         const versionFilePath = getVersionFilePath()
-        console.log('versionFilePath', versionFilePath)
         const versionData: LocalVersion = {
           version,
           group: groupName,
@@ -142,18 +144,35 @@ export function registerVersionHandlers() {
       // Get remote versions directly (not using the IPC handler to avoid circular calls)
       const remoteVersions = await httpsGet<VersionData>(URL_VERSIONS_LIST)
 
-      // Get local version
+      // 1. JSON-маркер версии (то, что мы сами писали при установке)
       const versionFilePath = getVersionFilePath()
-
       let localVersionData: LocalVersion | null = null
       try {
         const data = await readFile(versionFilePath, 'utf-8')
         localVersionData = JSON.parse(data) as LocalVersion
-      } catch (err) {
-        // If file doesn't exist or is invalid, localVersionData remains null
+      } catch {
+        // нет файла или невалидный JSON
       }
 
-      if (!localVersionData) {
+      // 2. Реальное состояние диска
+      const extensionPath = findInstalledCEPExtensionPath(EXTENSION_NAME)
+      const pluginsMissing = getMissingCSBridgePlugins()
+
+      const diskState: UpdateStatus['diskState'] = {
+        versionFileExists: localVersionData !== null,
+        extensionPath,
+        pluginsMissing
+      }
+
+      // "Установлено" только если оба источника подтверждают:
+      //   - наш маркер версии есть
+      //   - папка CEP-расширения реально существует на диске
+      // Если юзер удалил папку вручную, JSON-маркер игнорируем —
+      // плашка "v3.3.3 · Installed" больше врать не будет.
+      const reallyInstalled =
+        localVersionData !== null && extensionPath !== null
+
+      if (!reallyInstalled) {
         return {
           installed: false,
           updateAvailable: false,
@@ -161,14 +180,13 @@ export function registerVersionHandlers() {
           currentGroup: null,
           versions: remoteVersions.list,
           latestVersion: remoteVersions.fixed.stable,
-          latestBeta: remoteVersions.fixed.beta
+          latestBeta: remoteVersions.fixed.beta,
+          diskState
         } as UpdateStatus
       }
 
-      const currentVersion = localVersionData.version
-      const currentGroup = localVersionData.group
-      // const latestStable = remoteVersions.fixed.stable
-      // const latestBeta = remoteVersions.fixed.beta
+      const currentVersion = localVersionData!.version
+      const currentGroup = localVersionData!.group ?? null
 
       return {
         installed: true,
@@ -177,7 +195,8 @@ export function registerVersionHandlers() {
         currentGroup,
         versions: remoteVersions.list,
         latestVersion: remoteVersions.fixed.stable,
-        latestBeta: remoteVersions.fixed.beta
+        latestBeta: remoteVersions.fixed.beta,
+        diskState
       } as UpdateStatus
     } catch (error) {
       console.error('Failed to check update status:', error)

@@ -1,46 +1,81 @@
+<script setup>
+defineProps({
+  isVisible: { type: Boolean, default: false },
+  title: { type: String, default: 'Confirmation' },
+  message: { type: String, default: 'Are you sure?' },
+  confirmLabel: { type: String, default: 'Confirm' },
+  cancelLabel: { type: String, default: 'Cancel' }
+})
+
+const emit = defineEmits(['confirm', 'cancel'])
+const confirm = () => emit('confirm')
+const cancel = () => emit('cancel')
+</script>
+
 <template>
   <Transition name="modal">
     <div
       v-if="isVisible"
-      class="fixed inset-0 z-50 flex items-center justify-center"
+      class="fixed inset-0 z-50 flex items-center justify-center p-4"
     >
-      <!-- Затемнённый фон -->
       <div
-        class="absolute inset-0 bg-black bg-opacity-60 backdrop-transition"
+        class="absolute inset-0 bg-black/70 backdrop-transition"
+        style="backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px)"
         @click="cancel"
       ></div>
 
-      <!-- Модальное окно -->
       <div
-        class="relative backdrop-blur-sm rounded-lg shadow-xl p-6 max-w-md w-full m-4 content-transition border border-gray-700"
+        class="relative rounded-2xl p-7 max-w-sm w-full content-transition border border-white/10"
+        style="
+          background: rgba(17, 17, 28, 0.96);
+          backdrop-filter: blur(24px);
+          -webkit-backdrop-filter: blur(24px);
+          box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.85);
+        "
       >
-        <!-- Заголовок -->
-        <div class="text-center mb-4">
-          <h3 class="text-lg font-medium text-white">
-            {{ title }}
-          </h3>
+        <div class="flex items-start gap-3">
+          <div
+            class="inline-flex items-center justify-center w-9 h-9 rounded-xl shrink-0"
+            style="
+              background: rgba(239, 68, 68, 0.14);
+              border: 1px solid rgba(239, 68, 68, 0.3);
+            "
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke-width="2"
+              stroke="currentColor"
+              class="w-4.5 h-4.5 text-red-400"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"
+              />
+            </svg>
+          </div>
+          <div class="flex-1">
+            <h3 class="text-base font-semibold text-white">{{ title }}</h3>
+            <p
+              class="mt-1.5 text-sm leading-relaxed"
+              style="color: var(--color-text-muted)"
+            >
+              {{ message }}
+            </p>
+          </div>
         </div>
 
-        <!-- Содержимое -->
-        <div class="mt-2">
-          <p class="text-sm text-gray-300 text-center">
-            {{ message }}
-          </p>
-        </div>
-
-        <!-- Кнопки - центрированные в стиле Adobe -->
-        <div class="mt-6 flex justify-center space-x-4">
+        <div class="mt-6 flex justify-end gap-2">
           <button
-            class="flex items-center gap-1 shrink-0 font-semibold rounded-full p-2 px-6 bg-gray-800 text-gray-300 hover:bg-gray-700 transition-colors duration-200 focus:outline-none"
+            class="modal-btn modal-btn-secondary"
             @click="cancel"
           >
-            No
+            {{ cancelLabel }}
           </button>
-          <button
-            class="flex items-center gap-1 shrink-0 font-semibold rounded-full p-2 px-6 bg-danger-500 hover:bg-danger-600 text-white transition-colors duration-200 focus:outline-none"
-            @click="confirm"
-          >
-            I confirm
+          <button class="modal-btn modal-btn-danger" @click="confirm">
+            {{ confirmLabel }}
           </button>
         </div>
       </div>
@@ -48,82 +83,66 @@
   </Transition>
 </template>
 
-<script setup>
-defineProps({
-  isVisible: {
-    type: Boolean,
-    default: false
-  },
-  title: {
-    type: String,
-    default: 'Confirmation'
-  },
-  message: {
-    type: String,
-    default: 'Are you sure?'
-  }
-})
-
-const emit = defineEmits(['confirm', 'cancel'])
-
-const confirm = () => {
-  emit('confirm')
-}
-
-const cancel = () => {
-  emit('cancel')
-}
-</script>
-
 <style scoped>
-/* Анимация для всего модального окна */
+.modal-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 16px;
+  border-radius: 10px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    background 0.2s,
+    border-color 0.2s,
+    filter 0.2s;
+  border: 1px solid transparent;
+}
+
+.modal-btn-secondary {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--color-text);
+  border-color: rgba(255, 255, 255, 0.1);
+}
+.modal-btn-secondary:hover {
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.18);
+}
+
+.modal-btn-danger {
+  color: #ffffff;
+  background: linear-gradient(135deg, #ef4444 0%, #b91c1c 100%);
+  border-color: rgba(239, 68, 68, 0.4);
+  box-shadow: 0 6px 20px -8px rgba(239, 68, 68, 0.55);
+}
+.modal-btn-danger:hover {
+  filter: brightness(1.08);
+}
+
 .modal-enter-active,
 .modal-leave-active {
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
-
 .modal-enter-from,
 .modal-leave-to {
   opacity: 0;
 }
 
-/* Добавляем анимацию для содержимого через классы */
 .content-transition {
-  transition: all 0.3s ease;
+  transition: all 0.25s ease;
 }
-
 .modal-enter-from .content-transition,
 .modal-leave-to .content-transition {
   opacity: 0;
-  transform: scale(0.9);
+  transform: scale(0.94);
 }
 
-/* Анимация для фона */
 .backdrop-transition {
-  transition: opacity 0.3s ease;
+  transition: opacity 0.25s ease;
 }
-
 .modal-enter-from .backdrop-transition,
 .modal-leave-to .backdrop-transition {
   opacity: 0;
-}
-
-/* Стилизация скроллбара в стиле Adobe */
-::-webkit-scrollbar {
-  width: 8px;
-}
-
-::-webkit-scrollbar-track {
-  background: #2d2d2d;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb {
-  background: #4a4a4a;
-  border-radius: 4px;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  background: #5a5a5a;
 }
 </style>

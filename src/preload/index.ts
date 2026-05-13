@@ -1,10 +1,6 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
 
-// Use `contextBridge` APIs to expose Electron APIs to
-// renderer only if context isolation is enabled, otherwise
-// just add to the DOM global.
-console.log('Preload script is running')
 if (process.contextIsolated) {
   try {
     contextBridge.exposeInMainWorld('electron', electronAPI)
@@ -39,14 +35,25 @@ if (process.contextIsolated) {
         ipcRenderer.once('extension-uninstalled', (_event, result) =>
           callback(result)
         )
+      },
+      fetchLinks: () => ipcRenderer.invoke('fetch-links'),
+
+      // Native plugin bundles (CSBridge etc.)
+      checkPlugins: () => ipcRenderer.invoke('check-plugins'),
+      installPlugins: () => ipcRenderer.invoke('install-plugins'),
+
+      // Detect running Adobe apps (Premiere Pro / After Effects)
+      checkRunningAdobeApps: () =>
+        ipcRenderer.invoke('check-running-adobe-apps'),
+      startWatchingAdobeApps: () =>
+        ipcRenderer.send('start-watching-adobe-apps'),
+      stopWatchingAdobeApps: () => ipcRenderer.send('stop-watching-adobe-apps'),
+      onAdobeAppsChanged: (callback) => {
+        const subscription = (_event, state) => callback(state)
+        ipcRenderer.on('adobe-apps-changed', subscription)
+        return () =>
+          ipcRenderer.removeListener('adobe-apps-changed', subscription)
       }
-      // sendMessage: (channel, data) => ipcRenderer.send(channel, data),
-      // onProgress: (callback) =>
-      //   ipcRenderer.on('download-progress', (_event, value) => callback(value)),
-      // onInstalled: (callback) =>
-      //   ipcRenderer.once('extension-installed', (_event, value) =>
-      //     callback(value)
-      //   )
     })
   } catch (error) {
     console.error(error)
@@ -57,5 +64,3 @@ if (process.contextIsolated) {
   // @ts-ignore (define in dts)
   window.api = api
 }
-
-console.log('Preload script completed')

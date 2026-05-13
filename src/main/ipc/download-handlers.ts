@@ -9,16 +9,11 @@ import { getVersionFilePath } from './get-versions'
 // Используйте fs вместо rimraf для удаления директорий
 
 export function setupDownloadHandlers() {
-  console.log('Setting up download handlers')
-
   ipcMain.on('download-and-install-extension', (event, version) => {
     // Оборачиваем весь код в асинхронную функцию
     ;(async () => {
       const url = EXTENSION_URL + (version ? `&version=${version}` : '')
       const extensionName = EXTENSION_NAME
-      console.log(
-        `Received request to download and install URL:${url}, TO FOLDER: ${extensionName}`
-      )
 
       try {
         // Временный путь для скачивания ZXP файла
@@ -28,7 +23,6 @@ export function setupDownloadHandlers() {
         }
 
         const zxpPath = path.join(tempDir, `${extensionName}.zxp`)
-        console.log(`Will download to: ${zxpPath}`)
 
         // 1. Скачиваем ZXP файл
         await downloadFile(url, zxpPath, (progress) => {
@@ -36,13 +30,9 @@ export function setupDownloadHandlers() {
           event.sender.send('download-progress', progress)
         })
 
-        console.log('Download completed, installing...')
-
         // 2. Определяем путь к директории расширений Adobe CEP
 
         const extensionDir = getCEPExtensionsPath(extensionName, true)
-
-        console.log(`Will install to: ${extensionDir}`)
 
         // 3. Удаляем существующую папку расширения, если она есть
         // if (fs.existsSync(extensionDir)) {
@@ -73,11 +63,8 @@ export function setupDownloadHandlers() {
         // 7. Удаляем временный ZXP файл
         fs.unlinkSync(zxpPath)
 
-        console.log('Installation completed successfully')
-
         // 8. Отправляем сообщение об успешной установке
         const result = { success: true, path: extensionDir }
-        console.log('Sending installation result:', result)
         event.sender.send('extension-installed', result)
       } catch (error) {
         console.error('Error during installation:', error)
@@ -85,7 +72,6 @@ export function setupDownloadHandlers() {
           success: false,
           error: error instanceof Error ? error.message : 'Unknown error'
         }
-        console.log('Sending error result:', errorResult)
         event.sender.send('extension-installed', errorResult)
       }
     })().catch((error) => {
@@ -99,9 +85,7 @@ export function setupDownloadHandlers() {
   })
 
   ipcMain.on('uninstall-extension', async (event) => {
-    const url = EXTENSION_URL
     const extensionName = EXTENSION_NAME
-    console.log(`Received request to uninstall: ${url}, ${extensionName}`)
 
     try {
       const extensionDir = getCEPExtensionsPath(extensionName, false)
@@ -116,19 +100,14 @@ export function setupDownloadHandlers() {
       if (fs.existsSync(getVersionalizeFile)) {
         fs.rmSync(getVersionalizeFile, { force: true })
       }
-      console.log('Uninstallation completed successfully')
-
       // 7. Отправляем сообщение об успешном удалении
       const result = { success: true, path: extensionDir }
-      console.log('Sending uninstallation result:', result)
       event.sender.send('extension-uninstalled', result)
     } catch (error) {
-      console.error('Error during installation:', error)
       const errorResult = {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'
       }
-      console.log('Sending error result:', errorResult)
       event.sender.send('extension-uninstalled', errorResult)
     }
   })
@@ -142,7 +121,6 @@ function downloadFile(
   onProgress: (progress: number) => void
 ): Promise<void> {
   return new Promise((resolve, reject) => {
-    console.log(`Starting download from ${url}`)
     const file = fs.createWriteStream(destination)
 
     https
@@ -192,13 +170,10 @@ function downloadFile(
         )
         let downloadedLength = 0
 
-        console.log(`Total file size: ${totalLength} bytes`)
-
         response.on('data', (chunk) => {
           downloadedLength += chunk.length
           if (totalLength > 0) {
             const progress = Math.round((downloadedLength / totalLength) * 100)
-            console.log(`Download progress: ${progress}%`)
             // Отправляем только числовое значение
             onProgress(progress)
           }
@@ -208,19 +183,16 @@ function downloadFile(
 
         file.on('finish', () => {
           file.close()
-          console.log('Download completed')
           resolve()
         })
 
         file.on('error', (err) => {
           fs.unlink(destination, () => {})
-          console.error('File error:', err)
           reject(err)
         })
       })
       .on('error', (err) => {
         fs.unlink(destination, () => {})
-        console.error('HTTPS error:', err)
         reject(err)
       })
   })
@@ -290,7 +262,6 @@ function extFolderActions(
     try {
       // Проверяем, есть ли права на запись
       fs.accessSync(systemPath, fs.constants.W_OK | fs.constants.R_OK)
-      console.log('Access to system path')
       fs.rmSync(systemPath, { recursive: true, force: true })
       if (createFolder && !fs.existsSync(systemPath)) {
         fs.mkdirSync(systemPath, { recursive: true })
@@ -298,7 +269,6 @@ function extFolderActions(
       return systemPath
     } catch (error) {
       // Если нет прав на запись в системный путь, используем пользовательский
-      console.log('Нет прав на запись в системный путь CEP')
     }
   }
 

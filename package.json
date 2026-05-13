@@ -1,11 +1,11 @@
 {
-  "name": "odin-pro-installer",
-  "version": "1.0.1",
-  "description": "Awesome installer for Odin Pro",
+  "name": "spunkram-installer",
+  "version": "1.0.0",
+  "description": "Spunkram Installer for Adobe Premiere Pro & After Effects",
   "main": "./out/main/index.js",
-  "author": "odin-pro.com",
-  "homepage": "https://odin-pro.com",
-  "productName": "Odin Pro Manager",
+  "author": "Spunkram",
+  "homepage": "https://spunkram.motionflow.pro",
+  "productName": "Spunkram Installer",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts,.vue --fix",
@@ -27,14 +27,28 @@
   "build": {
     "npmArgs": [
       "--production"
-    ]
+    ],
+    "appId": "com.spunkram.installer",
+    "extraResources": [
+      {
+        "from": "resources/plugins/${os}",
+        "to": "plugins",
+        "filter": [
+          "**/*"
+        ]
+      }
+    ],
+    "win": {
+      "icon": "resources/icon.png"
+    }
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^3.0.0",
     "adm-zip": "^0.5.16",
     "rimraf": "^6.0.1",
-    "sudo-prompt": "^9.2.1"
+    "sudo-prompt": "^9.2.1",
+    "vue-i18n": "^11.4.2"
   },
   "devDependencies": {
     "@electron-toolkit/eslint-config": "^1.0.2",

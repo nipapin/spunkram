@@ -1,16 +1,14 @@
-import { app, shell, BrowserWindow, ipcMain } from 'electron'
+import { electronApp, is, optimizer } from '@electron-toolkit/utils'
+import { app, BrowserWindow, ipcMain, shell } from 'electron'
 import { join } from 'path'
-import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import icon from '../../resources/icon.png?asset'
 import { setupDownloadHandlers } from './ipc/download-handlers'
+import { registerFetchLinksHandlers } from './ipc/fetchLinks'
 import { registerVersionHandlers } from './ipc/get-versions'
-import * as fs from 'fs'
+import { registerInstallPluginsHandlers } from './ipc/install-plugins'
+import { registerRunningAppsHandlers } from './ipc/running-apps'
 
-// Добавьте отладочный вывод для проверки путей
-console.log('__dirname:', __dirname)
 const preloadPath = join(__dirname, '../preload/index.js')
-console.log('Preload path:', preloadPath)
-console.log('File exists:', fs.existsSync(preloadPath))
 
 function createWindow(): void {
   // Create the browser window.
@@ -97,6 +95,9 @@ app.whenReady().then(() => {
   setupDownloadHandlers()
   // Register all IPC handlers
   registerVersionHandlers()
+  registerFetchLinksHandlers()
+  registerInstallPluginsHandlers()
+  registerRunningAppsHandlers()
 
   createWindow()
 

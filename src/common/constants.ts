@@ -1,5 +1,5 @@
-export const EXTENSION_NAME = 'Odin Pro'
-export const AUTHOR_NAME = 'Premiere Basics'
+export const EXTENSION_NAME = 'Spunkram'
+export const AUTHOR_NAME = 'SpunkramTemp'
 // Базовый URL API
 const BASE_API_URL = 'https://api.get-atomx.com/atomx/v1/'
 
@@ -11,7 +11,7 @@ const createUrlWithExtName = (slug: string, link_slug: string | null) => {
     slug == 'author'
       ? `name=${authorNameUrlConvert}`
       : `king=${authorNameUrlConvert}`
-  const pPath = slug == 'link' ? `&goto=${link_slug}` : ''
+  const pPath = slug === 'link' ? `&goto=${link_slug}` : ''
 
   return `${url}?${assignAuthor}${pPath}`
 }

@@ -35,6 +35,27 @@ interface ElectronAPI {
     }) => void
   ) => void
   uninstallExtension: () => void
+  fetchLinks: () => Promise<Record<string, string>>
+
+  // Native plugin bundles (CSBridge etc.)
+  checkPlugins: () => Promise<string[]>
+  installPlugins: () => Promise<{
+    success: boolean
+    installed?: string[]
+    alreadyPresent?: boolean
+    error?: string
+  }>
+
+  // Detect running Adobe apps (Premiere Pro / After Effects)
+  checkRunningAdobeApps: () => Promise<AdobeAppsState>
+  startWatchingAdobeApps: () => void
+  stopWatchingAdobeApps: () => void
+  onAdobeAppsChanged: (callback: (state: AdobeAppsState) => void) => () => void
+}
+
+export interface AdobeAppsState {
+  premiere: boolean
+  afterEffects: boolean
 }
 
 export {}

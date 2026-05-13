@@ -1,17 +1,13 @@
-import { resolve } from 'path'
-import {
-  defineConfig,
-  externalizeDepsPlugin,
-  bytecodePlugin
-} from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
-import tailwindcss from 'tailwindcss'
 import autoprefixer from 'autoprefixer'
+import { defineConfig, externalizeDepsPlugin } from 'electron-vite'
+import { resolve } from 'path'
+import tailwindcss from 'tailwindcss'
 import pkg from './package.json'
 
 export default defineConfig({
   main: {
-    plugins: [externalizeDepsPlugin(), bytecodePlugin()],
+    plugins: [externalizeDepsPlugin()],
     resolve: {
       alias: {
         '@common': resolve('src/common')
@@ -19,7 +15,7 @@ export default defineConfig({
     }
   },
   preload: {
-    plugins: [externalizeDepsPlugin(), bytecodePlugin()]
+    plugins: [externalizeDepsPlugin()]
   },
   renderer: {
     define: {
