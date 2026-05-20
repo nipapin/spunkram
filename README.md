@@ -1,76 +1,184 @@
-<h1 align="center">electron-app</h1>
-
-<p align="center">An Electron application with Vue3 and TypeScript</p>
+<h1 align="center">Spunkram Installer</h1>
 
 <p align="center">
-<img src="https://img.shields.io/github/package-json/dependency-version/alex8088/electron-vite-boilerplate/dev/electron" alt="electron-version">
-<img src="https://img.shields.io/github/package-json/dependency-version/alex8088/electron-vite-boilerplate/dev/electron-vite" alt="electron-vite-version" />
-<img src="https://img.shields.io/github/package-json/dependency-version/alex8088/electron-vite-boilerplate/dev/electron-builder" alt="electron-builder-version" />
-<img src="https://img.shields.io/github/package-json/dependency-version/alex8088/electron-vite-boilerplate/dev/vite" alt="vite-version" />
-<img src="https://img.shields.io/github/package-json/dependency-version/alex8088/electron-vite-boilerplate/dev/vue" alt="vue-version" />
-<img src="https://img.shields.io/github/package-json/dependency-version/alex8088/electron-vite-boilerplate/dev/typescript" alt="typescript-version" />
+  Electron-приложение, которое скачивает CEP-расширение Spunkram и нативные плагины (CSBridge) для Adobe Premiere Pro и After Effects, и кладёт их в нужные системные папки.
 </p>
 
-<p align='center'>
-<img src='./build/electron-vite-vue-ts.png'/>
-</p>
+---
 
-## Features
+## Что делает установщик
 
-- 💡 Optimize asset handling
-- 🚀 Fast HMR for renderer processes
-- 🔥 Hot reloading for main process and preload scripts
-- 🔌 Easy to debug
-- 🔒 Compile to v8 bytecode to protect source code
+1. Сходить в API `api.get-atomx.com` за списком версий расширения (stable / beta).
+2. Скачать выбранный `.zxp` (на самом деле это zip), распаковать его во временный каталог.
+3. Атомарно подменить содержимое CEP-каталога расширения (см. [Куда ставится](#куда-ставится)).
+4. Распаковать нативные плагины и положить их в системные каталоги Adobe.
+5. Сохранить локальный маркер версии в `userData`, чтобы при следующем запуске UI знал, что уже установлено.
 
-## Getting Started
+Дополнительно: мониторит запущенные Premiere Pro / After Effects и блокирует установку, если они открыты и при этом надо ставить нативные плагины.
 
-Read [documentation](https://electron-vite.org/) for more details.
+---
 
-- [Configuring](https://electron-vite.org/config/)
-- [Development](https://electron-vite.org/guide/dev.html)
-- [Asset Handling](https://electron-vite.org/guide/assets.html)
-- [HMR](https://electron-vite.org/guide/hmr.html) & [Hot Reloading](https://electron-vite.org/guide/hot-reloading.html)
-- [Debugging](https://electron-vite.org/guide/debugging.html)
-- [Source code protection](https://electron-vite.org/guide/source-code-protection.html)
-- [Distribution](https://electron-vite.org/guide/distribution.html)
-- [Troubleshooting](https://electron-vite.org/guide/troubleshooting.html)
+## Куда ставится
 
-You can also use the [create-electron](https://github.com/alex8088/quick-start/tree/master/packages/create-electron) tool to scaffold your project for other frameworks (e.g. `React`, `Svelte` or `Solid`).
+### CEP-расширение
 
-## Recommended IDE Setup
+Папка `Spunkram` со скриптами расширения. Установщик выбирает её так:
 
-- [VSCode](https://code.visualstudio.com/) + [ESLint](https://marketplace.visualstudio.com/items?itemName=dbaeumer.vscode-eslint) + [Prettier](https://marketplace.visualstudio.com/items?itemName=esbenp.prettier-vscode) + [Volar](https://marketplace.visualstudio.com/items?itemName=Vue.volar) + [TypeScript Vue Plugin (Volar)](https://marketplace.visualstudio.com/items?itemName=Vue.vscode-typescript-vue-plugin)
+| Условие | Путь |
+|---|---|
+| Расширение уже стоит system-wide | `…/CEP/extensions/Spunkram` (та же папка) |
+| Иначе | user-каталог |
 
-## Project Setup
+| ОС | system-wide | per-user |
+|---|---|---|
+| Windows | `C:\Program Files (x86)\Common Files\Adobe\CEP\extensions\Spunkram` | `%APPDATA%\Adobe\CEP\extensions\Spunkram` |
+| macOS | `/Library/Application Support/Adobe/CEP/extensions/Spunkram` | `~/Library/Application Support/Adobe/CEP/extensions/Spunkram` |
 
-### Install
+> Important: если по обоим путям одновременно лежат две копии расширения, CEP грузит system-копию. Поэтому установщик специально пишет туда же, где уже что-то лежит, чтобы не плодить дубликаты.
 
-```bash
-$ npm install
+### Нативные плагины (CSBridge)
+
+| Файл | Windows | macOS |
+|---|---|---|
+| `MotionflowBridge.*` | `C:\Program Files\Adobe\Common\Plug-ins\ControlSurface` | `/Library/Application Support/Adobe/Common/Plug-ins/ControlSurface` |
+| `MotionflowInit.*` | `C:\Program Files\Adobe\Common\Plug-ins\7.0\MediaCore` | `/Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore` |
+
+Обе системные папки требуют админ-прав, поэтому копирование туда поднимается одной командой через `sudo-prompt` (UAC на Windows, диалог пароля на macOS).
+
+### Локальный маркер версии
+
+`<userData>/installed_version_Spunkram.json` — JSON с `{version, group, installedAt}`. По нему UI понимает, есть ли что обновлять. `userData` зависит от `productName`:
+
+- Windows: `%APPDATA%\Spunkram Installer\`
+- macOS: `~/Library/Application Support/Spunkram Installer/`
+
+---
+
+## Когда придёт запрос админ-прав
+
+Установщик максимально старается обойтись без админа: всё, что можно положить в user-каталог, кладётся туда без UAC. Системный диалог (`UAC` / `sudo`) появляется только в двух случаях:
+
+1. **Установка/обновление нативных плагинов** (`MotionflowBridge`, `MotionflowInit`) — потому что их целевые папки в `Program Files` / `/Library` всегда требуют админа.
+2. **Установка/удаление CEP-расширения по system-пути**, если оно когда-то было поставлено system-wide.
+
+Если ни плагинов, ни system-копии расширения нет — UAC вообще не появится.
+
+Windows-сборка идёт как `portable`-EXE с `requestExecutionLevel: user`, поэтому сам запуск установщика админских прав не требует.
+
+---
+
+## Поток установки (диаграмма)
+
+```
+[Renderer]                    [Main]
+  Install ─────────────►  check Adobe apps running?
+                                │
+                                ├─ да, и плагины не стоят → блокируем, ждём закрытия
+                                │
+                                └─ нет / плагины уже стоят
+                                       │
+                                       ▼
+                                  download zxp → tmp
+                                       │
+                                       ▼
+                                  extract → staging-dir
+                                       │
+                                       ▼
+                                  swap staging → CEP-extension path
+                                       │ (sudo, если system-path)
+                                       ▼
+                                  installPlugins()
+                                       │
+                                       ├─ check missing CSBridge
+                                       ├─ (mac) extract cep-helpers.zip → tmp
+                                       ├─ sudo cp → system Plug-ins
+                                       └─ verify destinations exist
+                                       │
+                                       ▼
+                                  save local version marker
+                                       │
+                          ◄──── extension-installed { success: true }
 ```
 
-### Development
+---
+
+## Разработка
+
+### Установка зависимостей
 
 ```bash
-$ npm run dev
+npm install
 ```
 
-### Build
+### Dev-режим
 
 ```bash
-# For windows
-$ npm run build:win
-
-# For macOS
-$ npm run build:mac
-
-# For Linux
-$ npm run build:linux
+npm run dev
 ```
 
-## Examples
+В dev-режиме плагины берутся из `resources/plugins/{win,mac}` напрямую (через `app.getAppPath()`). В упакованной сборке они кладутся в `<resources>/plugins` через `extraResources` (см. `electron-builder.yml`).
 
-- [electron-vite-bytecode-example](https://github.com/alex8088/electron-vite-bytecode-example), source code protection
-- [electron-vite-decorator-example](https://github.com/alex8088/electron-vite-decorator-example), typescipt decorator
-- [electron-vite-worker-example](https://github.com/alex8088/electron-vite-worker-example), worker and fork
+### Билды
+
+```bash
+npm run build         # типы + bundle
+npm run build:win     # portable .exe
+npm run build:mac     # .dmg + .zip
+npm run build:linux   # AppImage + .deb
+```
+
+Для Mac-релиза нужно добавить code-signing и notarization (см. `electron-builder.yml::mac.notarize` и `build/entitlements.mac.plist`).
+
+### Проверки
+
+```bash
+npm run typecheck     # tsc для main/preload + vue-tsc для renderer
+npm run lint
+```
+
+---
+
+## Структура
+
+```
+src/
+├── common/
+│   ├── constants.ts           # EXTENSION_NAME, URL_*
+│   └── interfaces/IVersions.ts
+├── main/
+│   ├── index.ts               # bootstrap + registerXxxHandlers()
+│   └── ipc/
+│       ├── cep-paths.ts       # выбор путей CEP/плагинов (источник истины)
+│       ├── download-handlers.ts # скачивание + установка/удаление расширения
+│       ├── install-plugins.ts   # установка нативных CSBridge плагинов
+│       ├── get-versions.ts      # API + сравнение с локальной версией
+│       ├── running-apps.ts      # детект запущенных Premiere / AE
+│       └── fetchLinks.ts        # quick-links из CMS
+├── preload/index.ts
+└── renderer/src/
+    ├── MainForm.vue
+    ├── components/
+    └── i18n/locales/{en,tr}.ts
+resources/
+├── icon.png                   # иконка (Win/Mac/Linux)
+└── plugins/
+    ├── win/                   # .acsrf / .prm — лежат сразу как файлы
+    └── mac/cep-helpers.zip    # bundles — упакованы в zip, распаковываются на лету
+build/
+└── entitlements.mac.plist     # для будущей подписи macOS-сборки
+electron-builder.yml           # ЕДИНСТВЕННАЯ конфигурация сборки
+```
+
+> `package.json` намеренно НЕ содержит секции `build` — при наличии `electron-builder.yml` поле `build` в `package.json` electron-builder'ом игнорируется. Если добавить опции туда, они потеряются.
+
+---
+
+## Troubleshooting
+
+| Симптом | Что делать |
+|---|---|
+| `Plugin source files not found in installer` / `cep-helpers.zip not found` | `resources/plugins/${os}/*` не попали в сборку. Проверь `electron-builder.yml::extraResources`. |
+| `Cannot replace existing extension folder … holding files open` | Закрыть Premiere / After Effects (включая фоновые `Adobe After Effects Renderer`) и повторить. |
+| UAC появляется при простом обновлении | Значит, у тебя стоит system-копия расширения. Это норма. |
+| После Install бейдж «v.X · Installed» врёт | Должно само откатиться при ошибке. Если воспроизводится — приложи `errorDetails` из UI (есть кнопка Copy error). |
+| macOS «приложение повреждено» / Gatekeeper блокирует | Сборка пока не подписана. Запусти `xattr -dr com.apple.quarantine "Spunkram Installer.app"` или подпишись и нотаризуйся (см. `electron-builder.yml::mac`). |

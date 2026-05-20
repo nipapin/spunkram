@@ -43,10 +43,16 @@ const computePlacement = () => {
   // Pick the side with more room
   if (spaceBelow >= spaceAbove) {
     placement.value = 'bottom'
-    maxScrollHeight.value = Math.max(120, Math.min(280, spaceBelow - HEADER_HEIGHT - 16))
+    maxScrollHeight.value = Math.max(
+      120,
+      Math.min(280, spaceBelow - HEADER_HEIGHT - 16)
+    )
   } else {
     placement.value = 'top'
-    maxScrollHeight.value = Math.max(120, Math.min(280, spaceAbove - HEADER_HEIGHT - 16))
+    maxScrollHeight.value = Math.max(
+      120,
+      Math.min(280, spaceAbove - HEADER_HEIGHT - 16)
+    )
   }
 }
 
@@ -148,7 +154,9 @@ const totalVersions = computed(() => {
         v-if="isOpen"
         class="dropdown-panel"
         :class="`placement-${placement}`"
-        :style="{ transformOrigin: placement === 'top' ? 'bottom right' : 'top right' }"
+        :style="{
+          transformOrigin: placement === 'top' ? 'bottom right' : 'top right'
+        }"
       >
         <div class="dropdown-header">
           <span>{{ $t('versions.available') }}</span>
@@ -186,7 +194,9 @@ const totalVersions = computed(() => {
                   v{{ version.name }}
                 </span>
                 <span
-                  v-if="version.action === latestVersion && groupName === 'stable'"
+                  v-if="
+                    version.action === latestVersion && groupName === 'stable'
+                  "
                   class="badge-latest"
                 >
                   {{ $t('badge.latest') }}

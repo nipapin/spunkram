@@ -15,8 +15,7 @@ const links = [
     id: 'changelog',
     labelKey: 'quickLinks.changelog',
     key: 'updates_log',
-    iconPath:
-      'M12 8v4l3 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z'
+    iconPath: 'M12 8v4l3 2M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0z'
   },
   {
     id: 'bug',

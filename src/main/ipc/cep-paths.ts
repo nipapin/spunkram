@@ -1,5 +1,5 @@
 import { app } from 'electron'
-import { join } from 'path'
+import { dirname, join } from 'path'
 import * as fs from 'fs'
 import * as os from 'os'
 
@@ -24,7 +24,8 @@ export const CSBridge: { win: PluginEntry[]; mac: PluginEntry[] } = {
   mac: [
     {
       file: 'MotionflowBridge.bundle',
-      folder: '/Library/Application Support/Adobe/Common/Plug-ins/ControlSurface'
+      folder:
+        '/Library/Application Support/Adobe/Common/Plug-ins/ControlSurface'
     },
     {
       file: 'MotionflowInit.bundle',
@@ -119,7 +120,9 @@ export function getCEPExtensionCandidatePaths(extensionName: string): string[] {
  * один файл — пустой каталог трактуется как "ничего не установлено"
  * (Adobe CEP такую папку игнорирует, и юзер мог удалить содержимое вручную).
  */
-export function findInstalledCEPExtensionPath(extensionName: string): string | null {
+export function findInstalledCEPExtensionPath(
+  extensionName: string
+): string | null {
   for (const candidate of getCEPExtensionCandidatePaths(extensionName)) {
     try {
       if (!fs.existsSync(candidate)) continue
@@ -134,4 +137,68 @@ export function findInstalledCEPExtensionPath(extensionName: string): string | n
     }
   }
   return null
+}
+
+/**
+ * Проверяет, можно ли создать/перезаписать содержимое в указанной директории
+ * без админских прав. Учитывает как сам факт существования, так и реальные
+ * права на запись родителя (важно для system-path типа /Library/...).
+ */
+export function isPathWritableByCurrentUser(p: string): boolean {
+  try {
+    if (fs.existsSync(p)) {
+      fs.accessSync(p, fs.constants.W_OK)
+      return true
+    }
+    // Если самой папки нет — проверяем ближайшего существующего родителя.
+    let parent = p
+    while (parent && parent !== dirname(parent)) {
+      parent = dirname(parent)
+      if (fs.existsSync(parent)) {
+        fs.accessSync(parent, fs.constants.W_OK)
+        return true
+      }
+    }
+    return false
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Выбор каталога для установки CEP-расширения.
+ *
+ * Стратегия:
+ *   1) Если расширение уже стоит где-то (system / user) — переустанавливаем туда же,
+ *      чтобы не плодить две копии (system-копия CEP'ом грузится в приоритете
+ *      и перебивала бы новую user-копию).
+ *   2) Иначе предпочитаем user-каталог: он не требует админ-прав и достаточен для CEP.
+ *
+ * Возвращает выбранный путь и флаг needsAdmin — true если для записи туда
+ * текущему пользователю не хватает прав (system-path под обычным юзером).
+ */
+export function chooseCEPInstallTarget(extensionName: string): {
+  path: string
+  isSystemWide: boolean
+  needsAdmin: boolean
+} {
+  const [systemPath, userPath] = getCEPExtensionCandidatePaths(extensionName)
+
+  // 1) Если уже что-то стоит — переустанавливаем туда же.
+  const existing = findInstalledCEPExtensionPath(extensionName)
+  if (existing) {
+    return {
+      path: existing,
+      isSystemWide: existing === systemPath,
+      needsAdmin:
+        existing === systemPath && !isPathWritableByCurrentUser(systemPath)
+    }
+  }
+
+  // 2) Фолбэк — user-каталог.
+  return {
+    path: userPath,
+    isSystemWide: false,
+    needsAdmin: !isPathWritableByCurrentUser(userPath)
+  }
 }

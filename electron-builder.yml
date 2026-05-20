@@ -1,7 +1,14 @@
-appId: com.odinpro.manager
-productName: Odin Pro Manager
+# Конфигурация electron-builder.
+# При наличии этого файла поле `build` в package.json ИГНОРИРУЕТСЯ —
+# все настройки сборки держим строго здесь.
+
+appId: com.spunkram.installer
+productName: Spunkram Installer
+
 directories:
   buildResources: build
+
+# Что попадает в asar/Resources.app собранного приложения.
 files:
   - '!**/.vscode/*'
   - '!src/*'
@@ -14,41 +21,45 @@ files:
   - '!**/node_modules/.bin'
   - '!**/*.{spec,test}.{js,mjs,cjs,ts,mts,cts,jsx,tsx}'
   - '!**/node_modules/**/{.editorconfig,.eslintrc.js,.eslintrc.cjs,.eslintrc.json,.eslintrc,.eslintignore,.gitattributes,.gitignore,.npmignore,.prettierrc,.prettierrc.js,.prettierrc.json,.prettierrc.yaml,.prettierrc.yml}'
+
+# Нативные плагины (CSBridge etc.) — кладём в <resources>/plugins.
+# Источник зависит от ОС, см. resources/plugins/{win,mac}.
+# Используется в src/main/ipc/cep-paths.ts → getPluginsRoot().
+extraResources:
+  - from: resources/plugins/${os}
+    to: plugins
+    filter:
+      - '**/*'
+
 compression: store
-asar: false
-asarUnpack:
-  - resources/**
+asar: true
+
 win:
-  executableName: Odin-Pro-Manager
-  icon: build/icon.ico
+  executableName: Spunkram-Installer
+  icon: resources/icon.png
   target:
-    # - target: nsis
-    #   arch:
-    #     - x64
     - target: portable
       arch:
         - x64
+
 portable:
   artifactName: ${productName}_${version}_portable.${ext}
-  requestExecutionLevel: user # или admin, если требуются права администратора // def: user
-  splashImage: build/icon.png # опционально: изображение для заставки
-  keepTemporaryPath: true # Сохраняет распакованные файлы между запусками
-nsis:
-  artifactName: ${productName}-${version}-setup.${ext}
-  shortcutName: ${productName}
-  uninstallDisplayName: ${productName}
-  createDesktopShortcut: always
-  oneClick: true
-  perMachine: true
-  allowToChangeInstallationDirectory: false
-  deleteAppDataOnUninstall: true
-  differentialPackage: false
+  # У портативной версии нет UAC — права админа поднимаем точечно
+  # через sudo-prompt только на копию нативных плагинов (см. install-plugins.ts).
+  requestExecutionLevel: user
+  splashImage: resources/icon.png
+  # Сохраняем распакованные файлы между запусками,
+  # чтобы повторный запуск стартовал быстрее.
+  keepTemporaryPath: true
+
 mac:
-  icon: build/icon.icns
+  icon: resources/icon.png
   category: public.app-category.utilities
   target:
     - target: dmg
     - target: zip
+  # entitlementsInherit указывает на build/entitlements.mac.plist
+  # (создаётся в репозитории, нужен для будущего code-signing).
   entitlementsInherit: build/entitlements.mac.plist
   extendInfo:
     - NSCameraUsageDescription: Application requests access to the device's camera.
@@ -57,26 +68,29 @@ mac:
     - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
   notarize: false
 
-# DMG конфигурация (macOS installer)
 dmg:
   artifactName: ${productName}-${version}.${ext}
-  background: build/background.jpg
-  icon: build/icon.icns
+  icon: resources/icon.png
   iconSize: 100
   window:
     width: 540
     height: 380
+
 linux:
   target:
     - AppImage
     - deb
-  maintainer: odin-pro.com
+  maintainer: spunkram.motionflow.pro
   category: Utility
+
 appImage:
   artifactName: ${productName}-${version}.${ext}
+
 npmRebuild: false
+
 publish:
   provider: generic
-  url: https://odin-pro.com/changelog
+  url: https://spunkram.motionflow.pro/changelog
+
 electronDownload:
   mirror: https://npmmirror.com/mirrors/electron/

@@ -68,10 +68,7 @@ const cancel = () => emit('cancel')
         </div>
 
         <div class="mt-6 flex justify-end gap-2">
-          <button
-            class="modal-btn modal-btn-secondary"
-            @click="cancel"
-          >
+          <button class="modal-btn modal-btn-secondary" @click="cancel">
             {{ cancelLabel }}
           </button>
           <button class="modal-btn modal-btn-danger" @click="confirm">

@@ -45,7 +45,9 @@ function isProcessRunning(name: string): Promise<boolean> {
 
 async function isRunning(app: AdobeApp): Promise<boolean> {
   const names =
-    process.platform === 'win32' ? PROCESS_NAMES[app].win : PROCESS_NAMES[app].mac
+    process.platform === 'win32'
+      ? PROCESS_NAMES[app].win
+      : PROCESS_NAMES[app].mac
   const results = await Promise.all(names.map(isProcessRunning))
   return results.some(Boolean)
 }

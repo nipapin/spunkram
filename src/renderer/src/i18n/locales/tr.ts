@@ -45,14 +45,20 @@ export default {
       "Premiere Pro veya After Effects'i açın ve Spunkram'ı menüde bulun:",
     pathOpen: 'Aç',
     installStable: 'Kararlı v{version} sürümünü kur',
-    update: "v{version} sürümüne güncelle",
+    update: 'v{version} sürümüne güncelle',
     reinstall: 'Yeniden kur',
     uninstallTitle: "Spunkram'ı kaldır",
     betaWarning:
       'Bir beta sürüm kullanıyorsunuz. Hata bulursanız lütfen bildirin.'
   },
   error: {
-    title: 'Bir şeyler ters gitti'
+    title: 'Bir şeyler ters gitti',
+    adobeLockedHint:
+      'Adobe Premiere Pro veya After Effects açık görünüyor ve kurulum dosyalarını tutuyor. Tüm Adobe uygulamalarını kapatıp tekrar deneyin.',
+    pluginSourceMissingHint:
+      'Yükleyicide eklenti kaynak dosyaları eksik. Yükleyiciyi yeniden indirmeyi deneyin.',
+    networkHint:
+      'İndirme başarısız oldu — internet bağlantınızı kontrol edip tekrar deneyin.'
   },
   status: {
     installed: 'Spunkram başarıyla kuruldu',

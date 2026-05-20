@@ -4,8 +4,14 @@ import { useI18n } from 'vue-i18n'
 import VersionsDropDown from './components/VersionsDropDown.vue'
 import QuickLinks from './components/QuickLinks.vue'
 import { URL_REPORT_BUG } from '@common/constants'
+import type { UpdateStatus, VersionList } from '@common/interfaces/IVersions'
 import ConfirmationModal from './components/ConfirmationModal.vue'
 import LanguageSwitcher from './components/LanguageSwitcher.vue'
+
+type AppStatus = Pick<
+  UpdateStatus,
+  'installed' | 'currentVersion' | 'currentGroup' | 'latestVersion' | 'versions'
+>
 
 const { t } = useI18n()
 
@@ -85,35 +91,23 @@ watch(installationStatus, (newValue) => {
   }
 })
 
-const objectOriginData = ref<{
-  installed: boolean
-  currentVersion: string | null
-  currentGroup: string | null
-  latestVersion: string
-  versions: { stable: any[]; beta: any[]; latestVersion?: string }
-} | null>(null)
+const objectOriginData = ref<AppStatus | null>(null)
 
-const loadVersionData = async (): Promise<{
-  installed: boolean
-  currentVersion: string | null
-  currentGroup: string | null
-  latestVersion: string
-  versions: { stable: any[]; beta: any[]; latestVersion?: string }
-}> => {
-  const getUpdaterVersionData = await window.api.checkUpdateStatus()
+const sortVersions = (versions: VersionList): VersionList => ({
+  stable: [...versions.stable].sort((a, b) => b.name.localeCompare(a.name)),
+  beta: [...versions.beta].sort((a, b) => b.name.localeCompare(a.name))
+})
+
+const loadVersionData = async (): Promise<UpdateStatus> => {
+  const status = await window.api.checkUpdateStatus()
   objectOriginData.value = {
-    ...getUpdaterVersionData,
-    versions: {
-      ...getUpdaterVersionData.versions,
-      stable: getUpdaterVersionData.versions.stable.sort((a, b) =>
-        b.name.localeCompare(a.name)
-      ),
-      beta: getUpdaterVersionData.versions.beta.sort((a, b) =>
-        b.name.localeCompare(a.name)
-      )
-    }
+    installed: status.installed,
+    currentVersion: status.currentVersion,
+    currentGroup: status.currentGroup,
+    latestVersion: status.latestVersion,
+    versions: sortVersions(status.versions)
   }
-  return getUpdaterVersionData
+  return status
 }
 
 const refreshData = async (): Promise<void> => {
@@ -198,6 +192,32 @@ const currentGroup = computed(
   () => objectOriginData.value?.currentGroup ?? null
 )
 
+// Распознаём типовые причины падения, чтобы поверх "сырого" текста ошибки
+// (он на английском и нужен для bug-report) показать пользователю локализованный
+// hint c понятным следующим шагом.
+const errorHintKey = computed<string | null>(() => {
+  const text = errorDetails.value
+  if (!text) return null
+  if (/holding files open|EBUSY|EPERM|ENOTEMPTY|access is denied/i.test(text)) {
+    return 'error.adobeLockedHint'
+  }
+  if (
+    /Plugin (source|bundles?) (files? not found|missing)|cep-helpers\.zip/i.test(
+      text
+    )
+  ) {
+    return 'error.pluginSourceMissingHint'
+  }
+  if (
+    /ETIMEDOUT|ECONNRESET|ENOTFOUND|EAI_AGAIN|Download (timeout|truncated)|Too many redirects|HTTP Error/i.test(
+      text
+    )
+  ) {
+    return 'error.networkHint'
+  }
+  return null
+})
+
 const copyErrToClipboard = async (): Promise<void> => {
   try {
     await navigator.clipboard.writeText(errorDetails.value)
@@ -241,16 +261,35 @@ const uninstallExtension = async (): Promise<void> => {
   }
 }
 
-const installExtension = (version?: string, groupName?: string): void => {
+const installExtension = async (
+  version?: string,
+  groupName?: string
+): Promise<void> => {
   if (isLoading.value) return
   if (!objectOriginData.value) return
 
-  // Не пускаем установку, если открыт Premiere Pro / After Effects.
-  // Запоминаем параметры — watcher сам продолжит, когда юзер всё закроет.
+  // Не пускаем установку, если открыт Premiere Pro / After Effects —
+  // но только если ещё не установлены нативные CSBridge-плагины. Их копирование
+  // в системные папки Adobe требует, чтобы приложения были закрыты. Если же
+  // плагины уже стоят, простое обновление CEP-расширения системные файлы
+  // не трогает, поэтому Adobe закрывать не нужно.
   if (hasRunningAdobeApps.value) {
-    pendingInstall.value = { version, group: groupName }
-    isCloseAdobeModalVisible.value = true
-    return
+    let missingPlugins: string[] = []
+    try {
+      missingPlugins = await window.api.checkPlugins()
+    } catch (err) {
+      console.warn(
+        '[plugins] checkPlugins failed, assuming plugins missing:',
+        err
+      )
+      missingPlugins = ['unknown']
+    }
+
+    if (missingPlugins.length > 0) {
+      pendingInstall.value = { version, group: groupName }
+      isCloseAdobeModalVisible.value = true
+      return
+    }
   }
 
   downloadProgress.value = 0
@@ -260,8 +299,18 @@ const installExtension = (version?: string, groupName?: string): void => {
   const targetVersion = version ?? objectOriginData.value.latestVersion
   const targetGroup = groupName ?? 'stable'
 
+  // Optimistic UI: показываем целевую версию сразу, но запоминаем
+  // предыдущее значение, чтобы можно было откатить, если установка упадёт.
+  const previousVersion = objectOriginData.value.currentVersion
+  const previousGroup = objectOriginData.value.currentGroup
   objectOriginData.value.currentVersion = targetVersion
   objectOriginData.value.currentGroup = targetGroup
+
+  const rollbackOptimisticVersion = (): void => {
+    if (!objectOriginData.value) return
+    objectOriginData.value.currentVersion = previousVersion
+    objectOriginData.value.currentGroup = previousGroup
+  }
 
   try {
     if (progressUnsubscribe) {
@@ -296,6 +345,9 @@ const installExtension = (version?: string, groupName?: string): void => {
               errorDetails.value = `Plugins error: ${
                 pluginsResult.error ?? 'Unknown error'
               }`
+              // CEP-расширение поставилось, плагины — нет. currentVersion
+              // правильно показывает свежеустановленную версию, откатывать
+              // её не надо.
               setState('error')
               return
             }
@@ -327,6 +379,9 @@ const installExtension = (version?: string, groupName?: string): void => {
         } else {
           isLoading.value = false
           progressUnsubscribe = null
+          // CEP-установка не удалась — откатываем optimistic UI,
+          // чтобы badge "v.X · Installed" не врал пользователю.
+          rollbackOptimisticVersion()
           installationStatus.value = t('status.installFailed')
           errorDetails.value = `Error: ${
             result && result.error ? result.error : 'Unknown download error'
@@ -337,12 +392,14 @@ const installExtension = (version?: string, groupName?: string): void => {
 
       window.api.downloadExtension(version ?? '')
     } else {
+      rollbackOptimisticVersion()
       installationStatus.value = t('status.apiUnavailable')
       isLoading.value = false
       errorDetails.value = installationStatus.value
       setState('error')
     }
   } catch (error) {
+    rollbackOptimisticVersion()
     installationStatus.value = t('status.installFailed')
     isLoading.value = false
     errorDetails.value = `Error: ${error || 'Unknown'}`
@@ -803,7 +860,14 @@ const headerVersionText = computed(() => {
             {{ $t('error.title') }}
           </h1>
           <p
-            class="mt-1.5 text-sm select-text cursor-text break-words max-w-[420px]"
+            v-if="errorHintKey"
+            class="mt-2 text-sm leading-relaxed max-w-[420px]"
+            style="color: var(--color-text)"
+          >
+            {{ $t(errorHintKey) }}
+          </p>
+          <p
+            class="mt-1.5 text-xs select-text cursor-text break-words max-w-[420px] font-mono"
             style="color: var(--color-text-muted)"
           >
             {{ errorDetails }}

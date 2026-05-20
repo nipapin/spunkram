@@ -1,6 +1,7 @@
-import { ipcMain } from 'electron'
-import { join } from 'path'
+import { ipcMain, app } from 'electron'
+import { dirname, join } from 'path'
 import * as fs from 'fs'
+import * as os from 'os'
 import { execSync } from 'child_process'
 import sudoPrompt from 'sudo-prompt'
 import AdmZip from 'adm-zip'
@@ -12,13 +13,44 @@ import {
   getPluginsRoot
 } from './cep-paths'
 
+// sudo-prompt разрешает в `name` только [A-Za-z0-9 ], без спецсимволов.
+// EXTENSION_NAME сейчас 'Spunkram' — проходит, но защитимся на будущее.
+const SUDO_PROMPT_NAME = EXTENSION_NAME.replace(/[^A-Za-z0-9 ]/g, '')
+
 function execAsAdmin(cmd: string): Promise<string> {
   return new Promise((resolve, reject) => {
-    sudoPrompt.exec(cmd, { name: EXTENSION_NAME }, (err, stdout) => {
+    sudoPrompt.exec(cmd, { name: SUDO_PROMPT_NAME }, (err, stdout) => {
       if (err) reject(err)
       else resolve(typeof stdout === 'string' ? stdout : '')
     })
   })
+}
+
+/**
+ * Экранирование одинарных кавычек для POSIX shell.
+ *   'abc' → 'abc'
+ *   it's → 'it'\''s'
+ */
+function shQuote(p: string): string {
+  return `'${p.replace(/'/g, `'\\''`)}'`
+}
+
+/**
+ * Экранирование для cmd.exe внутри двойных кавычек.
+ * Внутри "..." опасны: " % ^ ! &
+ *   " — экранируется удвоением;
+ *   % и ! — раскрываются как переменные → удваиваем ^;
+ *   ^ & — управляющие;
+ * Для простоты бьём через ^.
+ */
+function cmdQuote(p: string): string {
+  const escaped = p
+    .replace(/\^/g, '^^')
+    .replace(/"/g, '^"')
+    .replace(/%/g, '^%')
+    .replace(/!/g, '^!')
+    .replace(/&/g, '^&')
+  return `"${escaped}"`
 }
 
 async function copyPairsAsAdminWin(pairs: [string, string][]): Promise<void> {
@@ -33,8 +65,10 @@ async function copyPairsAsAdminWin(pairs: [string, string][]): Promise<void> {
   //   относился ко всей конструкции.
   const cmd = pairs
     .map(([src, dest]) => {
-      const dir = pathDir(dest)
-      return `(if not exist "${dir}" mkdir "${dir}") && copy /Y "${src}" "${dest}"`
+      const dir = cmdQuote(dirname(dest))
+      const srcQ = cmdQuote(src)
+      const destQ = cmdQuote(dest)
+      return `(if not exist ${dir} mkdir ${dir}) && copy /Y ${srcQ} ${destQ}`
     })
     .join(' && ')
 
@@ -43,10 +77,10 @@ async function copyPairsAsAdminWin(pairs: [string, string][]): Promise<void> {
 
 async function copyPairsAsAdminMac(pairs: [string, string][]): Promise<void> {
   const cmd = pairs
-    .map(
-      ([src, dest]) =>
-        `mkdir -p "${pathDir(dest)}" && cp -Rf "${src}" "${dest}"`
-    )
+    .map(([src, dest]) => {
+      const dir = shQuote(dirname(dest))
+      return `mkdir -p ${dir} && cp -Rf ${shQuote(src)} ${shQuote(dest)}`
+    })
     .join(' && ')
   await execAsAdmin(cmd)
 }
@@ -62,8 +96,16 @@ function verifyDestinationsExist(pairs: [string, string][]): string[] {
     .map(([, dest]) => dest)
 }
 
-function pathDir(p: string): string {
-  return p.substring(0, Math.max(p.lastIndexOf('/'), p.lastIndexOf('\\')))
+/**
+ * Возвращает каталог для распаковки бандлов плагинов на Mac.
+ * НЕ распаковываем внутрь .app — это ломает code-signature и часто
+ * запрещено правами (если .app установлен в /Applications админом).
+ *
+ * Используем подкаталог в системном temp, привязанный к версии приложения,
+ * чтобы между апдейтами не подсовывался старый кеш.
+ */
+function getMacExtractDir(): string {
+  return join(os.tmpdir(), `${SUDO_PROMPT_NAME}-plugins-${app.getVersion()}`)
 }
 
 async function installWin(
@@ -78,6 +120,10 @@ async function installWin(
 
   const stillMissing = verifyDestinationsExist(pairs)
   if (stillMissing.length > 0) {
+    console.error(
+      '[install-plugins][win] copy succeeded but files missing:',
+      stillMissing
+    )
     throw new Error(
       `Copy reported success but files are not on disk: ${stillMissing.join(', ')}`
     )
@@ -89,24 +135,52 @@ async function installMac(
   missing: PluginEntry[],
   pluginsRoot: string
 ): Promise<string[]> {
-  // Бандлы хранятся в zip ровно как в CEP-варианте, распаковываем рядом.
+  // 1. Распаковываем zip с бандлами в безопасное место (вне .app).
   const zipPath = join(pluginsRoot, 'cep-helpers.zip')
-  if (fs.existsSync(zipPath)) {
-    new AdmZip(zipPath).extractAllTo(pluginsRoot, true)
+  if (!fs.existsSync(zipPath)) {
+    throw new Error(
+      `Plugin source archive not found in installer: ${zipPath}. ` +
+        `Make sure resources/plugins/mac/cep-helpers.zip is packaged via extraResources.`
+    )
   }
 
+  const extractDir = getMacExtractDir()
+  fs.mkdirSync(extractDir, { recursive: true })
+  // overwrite=true: пересоздаём при каждом запуске, чтобы старый
+  // распакованный bundle от прошлой версии не перебивал новый.
+  new AdmZip(zipPath).extractAllTo(extractDir, true)
+
+  // 2. Убедимся, что все нужные бандлы реально появились после распаковки.
+  const missingSources = missing.filter(
+    (p) => !fs.existsSync(join(extractDir, p.file))
+  )
+  if (missingSources.length > 0) {
+    const list = missingSources.map((p) => p.file).join(', ')
+    throw new Error(`Plugin bundles missing inside cep-helpers.zip: ${list}`)
+  }
+
+  // 3. chmod +x на бинарники внутри Contents/MacOS — иначе бандл не загрузится.
   const pairs: [string, string][] = missing.map((p) => {
-    const bundle = join(pluginsRoot, p.file)
+    const bundle = join(extractDir, p.file)
     const macosDir = join(bundle, 'Contents', 'MacOS')
     if (fs.existsSync(macosDir)) {
-      execSync(`chmod -R +x "${macosDir}"`)
+      try {
+        execSync(`chmod -R +x ${shQuote(macosDir)}`)
+      } catch (chmodErr) {
+        console.warn('[install-plugins][mac] chmod failed:', chmodErr)
+      }
     }
     return [bundle, join(p.folder, p.file)]
   })
+
   await copyPairsAsAdminMac(pairs)
 
   const stillMissing = verifyDestinationsExist(pairs)
   if (stillMissing.length > 0) {
+    console.error(
+      '[install-plugins][mac] copy succeeded but files missing:',
+      stillMissing
+    )
     throw new Error(
       `Copy reported success but files are not on disk: ${stillMissing.join(', ')}`
     )
@@ -116,8 +190,7 @@ async function installMac(
 
 export function registerInstallPluginsHandlers(): void {
   ipcMain.handle('check-plugins', () => {
-    const missing = getMissingCSBridgePlugins()
-    return missing
+    return getMissingCSBridgePlugins()
   })
 
   ipcMain.handle('install-plugins', async () => {
@@ -134,15 +207,21 @@ export function registerInstallPluginsHandlers(): void {
         return { success: true, installed: [], alreadyPresent: true }
       }
 
-      // Заранее проверим, есть ли исходники в pluginsRoot — иначе sudo упадёт без понятного объяснения.
-      const missingSources = missing.filter(
-        (p) => !fs.existsSync(join(pluginsRoot, p.file))
-      )
-      if (platform === 'win' && missingSources.length > 0) {
-        const list = missingSources.map((p) => p.file).join(', ')
-        return {
-          success: false,
-          error: `Plugin source files not found in installer: ${list}`
+      // Для Windows бандлы лежат в pluginsRoot напрямую — проверим заранее,
+      // чтобы не уходить в sudo с заведомо отсутствующими файлами.
+      // Для Mac та же проверка делается уже после распаковки zip внутри installMac.
+      if (platform === 'win') {
+        const missingSources = missing.filter(
+          (p) => !fs.existsSync(join(pluginsRoot, p.file))
+        )
+        if (missingSources.length > 0) {
+          const list = missingSources.map((p) => p.file).join(', ')
+          return {
+            success: false,
+            error:
+              `Plugin source files not found in installer: ${list}. ` +
+              `Check electron-builder.yml → extraResources.`
+          }
         }
       }
 
@@ -153,6 +232,7 @@ export function registerInstallPluginsHandlers(): void {
 
       return { success: true, installed, alreadyPresent: false }
     } catch (error) {
+      console.error('[install-plugins] failed:', error)
       return {
         success: false,
         error: error instanceof Error ? error.message : 'Unknown error'

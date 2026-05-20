@@ -2,6 +2,7 @@ import { ipcMain, app } from 'electron'
 import { join } from 'path'
 import { readFile, writeFile } from 'fs/promises'
 import https from 'https'
+import { URL } from 'url'
 
 import { URL_VERSIONS_LIST, EXTENSION_NAME } from '@common/constants'
 import {
@@ -14,62 +15,87 @@ import {
   getMissingCSBridgePlugins
 } from './cep-paths'
 
+const HTTPS_TIMEOUT_MS = 15_000
+const MAX_REDIRECTS = 5
+
 /**
- * Helper function to make HTTPS requests
+ * Helper function to make HTTPS GET request that:
+ *  - поддерживает редиректы (только в пределах https);
+ *  - имеет timeout — без него зависшая TCP-сессия повесит UI на спиннер;
+ *  - возвращает распарсенный JSON-ответ.
  */
-async function httpsGet<T>(url: string): Promise<T> {
+async function httpsGet<T>(
+  url: string,
+  redirectsLeft: number = MAX_REDIRECTS
+): Promise<T> {
   return new Promise((resolve, reject) => {
-    https
-      .get(url, (res) => {
-        // Проверяем статус ответа
-        if (res.statusCode !== 200) {
-          console.error(`HTTP Error: ${res.statusCode} ${res.statusMessage}`)
+    let parsed: URL
+    try {
+      parsed = new URL(url)
+    } catch (parseErr) {
+      reject(parseErr)
+      return
+    }
+    if (parsed.protocol !== 'https:') {
+      reject(new Error(`Refusing non-https request: ${parsed.protocol}//...`))
+      return
+    }
 
-          // Если сервер вернул ошибку, пытаемся прочитать JSON с сообщением об ошибке
-          let errorData = ''
+    const req = https.get(url, (res) => {
+      const status = res.statusCode || 0
 
-          res.on('data', (chunk) => {
-            errorData += chunk
-          })
-
-          res.on('end', () => {
-            try {
-              // Пытаемся распарсить JSON с ошибкой
-              const errorJson = JSON.parse(errorData)
-              reject(
-                new Error(errorJson.error || `HTTP Error: ${res.statusCode}`)
-              )
-            } catch (e) {
-              // Если не удалось распарсить JSON, возвращаем стандартную ошибку
-              reject(
-                new Error(`HTTP Error: ${res.statusCode} ${res.statusMessage}`)
-              )
-            }
-          })
-
+      if (status >= 300 && status < 400 && res.headers.location) {
+        res.resume()
+        if (redirectsLeft <= 0) {
+          reject(new Error(`Too many redirects while fetching ${url}`))
           return
         }
+        let next: string
+        try {
+          next = new URL(res.headers.location, url).toString()
+        } catch (urlErr) {
+          reject(urlErr)
+          return
+        }
+        httpsGet<T>(next, redirectsLeft - 1).then(resolve, reject)
+        return
+      }
 
-        let data = ''
-
-        // A chunk of data has been received
-        res.on('data', (chunk) => {
-          data += chunk
-        })
-
-        // The whole response has been received
+      if (status !== 200) {
+        let errorData = ''
+        res.on('data', (chunk) => (errorData += chunk))
         res.on('end', () => {
           try {
-            const parsedData = JSON.parse(data)
-            resolve(parsedData)
-          } catch (e) {
-            reject(new Error('Failed to parse response data'))
+            const j = JSON.parse(errorData)
+            reject(new Error(j.error || `HTTP Error: ${status}`))
+          } catch {
+            reject(
+              new Error(
+                `HTTP Error: ${status} ${res.statusMessage ?? ''}`.trim()
+              )
+            )
           }
         })
+        return
+      }
+
+      let data = ''
+      res.on('data', (chunk) => (data += chunk))
+      res.on('end', () => {
+        try {
+          resolve(JSON.parse(data) as T)
+        } catch {
+          reject(new Error('Failed to parse response data'))
+        }
       })
-      .on('error', (err) => {
-        reject(err)
-      })
+      res.on('error', reject)
+    })
+
+    req.setTimeout(HTTPS_TIMEOUT_MS, () => {
+      req.destroy(new Error(`Request timeout after ${HTTPS_TIMEOUT_MS}ms`))
+    })
+
+    req.on('error', reject)
   })
 }
 

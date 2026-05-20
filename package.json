@@ -24,24 +24,6 @@
     "build:p:mac": "npx electron-builder --mac portable",
     "clean": "rimraf dist dist_electron .electron-vue/build .cache node_modules/.cache"
   },
-  "build": {
-    "npmArgs": [
-      "--production"
-    ],
-    "appId": "com.spunkram.installer",
-    "extraResources": [
-      {
-        "from": "resources/plugins/${os}",
-        "to": "plugins",
-        "filter": [
-          "**/*"
-        ]
-      }
-    ],
-    "win": {
-      "icon": "resources/icon.png"
-    }
-  },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.0",
     "@electron-toolkit/utils": "^3.0.0",

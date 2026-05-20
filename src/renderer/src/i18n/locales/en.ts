@@ -39,8 +39,7 @@ export default {
     betaInstalled: 'Beta v{version} installed',
     upToDate: 'You have the latest version',
     updateAvailable: 'Update available',
-    updateHint:
-      "You're on {current} — newer {latest} is available.",
+    updateHint: "You're on {current} — newer {latest} is available.",
     openHint:
       'Open Premiere Pro or After Effects and find Spunkram in the menu:',
     pathOpen: 'Open',
@@ -52,7 +51,13 @@ export default {
       "You're using a beta build. If you find a bug, please report it."
   },
   error: {
-    title: 'Something went wrong'
+    title: 'Something went wrong',
+    adobeLockedHint:
+      'Adobe Premiere Pro or After Effects appears to be open and holding installer files. Close all Adobe apps and try again.',
+    pluginSourceMissingHint:
+      'The installer is missing plugin source files. Try downloading the installer again.',
+    networkHint:
+      'The download failed — check your internet connection and try again.'
   },
   status: {
     installed: 'Spunkram installed successfully',
