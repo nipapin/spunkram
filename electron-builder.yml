@@ -38,19 +38,14 @@ win:
   executableName: Spunkram-Installer
   icon: resources/icon.png
   target:
-    - target: portable
+    - target: nsis
       arch:
         - x64
 
-portable:
-  artifactName: ${productName}_${version}_portable.${ext}
-  # У портативной версии нет UAC — права админа поднимаем точечно
-  # через sudo-prompt только на копию нативных плагинов (см. install-plugins.ts).
-  requestExecutionLevel: user
-  splashImage: resources/icon.png
-  # Сохраняем распакованные файлы между запусками,
-  # чтобы повторный запуск стартовал быстрее.
-  keepTemporaryPath: true
+nsis:
+  artifactName: ${productName}_${version}_setup.${ext}
+  oneClick: true
+  perMachine: false
 
 mac:
   icon: resources/icon.png

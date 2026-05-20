@@ -1,0 +1,106 @@
+// electron.vite.config.ts
+import vue from "@vitejs/plugin-vue";
+import autoprefixer from "autoprefixer";
+import { defineConfig, externalizeDepsPlugin } from "electron-vite";
+import { resolve } from "path";
+import tailwindcss from "tailwindcss";
+
+// package.json
+var package_default = {
+  name: "spunkram-installer",
+  version: "1.0.0",
+  description: "Spunkram Installer for Adobe Premiere Pro & After Effects",
+  main: "./out/main/index.js",
+  author: "Spunkram",
+  homepage: "https://spunkram.motionflow.pro",
+  productName: "Spunkram Installer",
+  scripts: {
+    format: "prettier --write .",
+    lint: "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts,.vue --fix",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "vue-tsc --noEmit -p tsconfig.web.json --composite false",
+    typecheck: "npm run typecheck:node && npm run typecheck:web",
+    start: "electron-vite preview",
+    dev: "electron-vite dev",
+    build: "npm run typecheck && electron-vite build",
+    postinstall: "electron-builder install-app-deps",
+    "build:unpack": "npm run build && electron-builder --dir",
+    "build:win": "npm run build && electron-builder --win",
+    "build:mac": "npm run build && electron-builder --mac",
+    "build:linux": "npm run build && electron-builder --linux",
+    "build:p:win": "npx electron-builder --win portable",
+    "build:p:mac": "npx electron-builder --mac portable",
+    clean: "rimraf dist dist_electron .electron-vue/build .cache node_modules/.cache"
+  },
+  dependencies: {
+    "@electron-toolkit/preload": "^3.0.0",
+    "@electron-toolkit/utils": "^3.0.0",
+    "adm-zip": "^0.5.16",
+    rimraf: "^6.0.1",
+    "sudo-prompt": "^9.2.1",
+    "vue-i18n": "^11.4.2"
+  },
+  devDependencies: {
+    "@electron-toolkit/eslint-config": "^1.0.2",
+    "@electron-toolkit/eslint-config-ts": "^1.0.1",
+    "@electron-toolkit/tsconfig": "^1.0.1",
+    "@rushstack/eslint-patch": "^1.7.1",
+    "@tailwindcss/postcss": "^4.1.3",
+    "@types/adm-zip": "^0.5.7",
+    "@types/node": "^18.19.9",
+    "@types/rimraf": "^3.0.2",
+    "@vitejs/plugin-vue": "^5.0.3",
+    "@vue/eslint-config-prettier": "^9.0.0",
+    "@vue/eslint-config-typescript": "^12.0.0",
+    autoprefixer: "^10.4.21",
+    electron: "^28.2.0",
+    "electron-builder": "^26.0.12",
+    "electron-vite": "^3.1.0",
+    eslint: "^8.56.0",
+    "eslint-plugin-vue": "^9.20.1",
+    postcss: "^8.5.3",
+    prettier: "^3.2.4",
+    tailwindcss: "^3.4.17",
+    typescript: "^5.8.3",
+    vite: "^5.0.12",
+    vue: "^3.4.15",
+    "vue-tsc": "^2.2.8"
+  }
+};
+
+// electron.vite.config.ts
+var electron_vite_config_default = defineConfig({
+  main: {
+    plugins: [externalizeDepsPlugin()],
+    resolve: {
+      alias: {
+        "@common": resolve("src/common")
+      }
+    }
+  },
+  preload: {
+    plugins: [externalizeDepsPlugin()]
+  },
+  renderer: {
+    define: {
+      "process.env.PACKAGE_NAME": JSON.stringify(package_default.name),
+      "process.env.PACKAGE_VERSION": JSON.stringify(package_default.version),
+      "process.env.PACKAGE_PRODUCT_NAME": JSON.stringify(package_default.productName)
+    },
+    resolve: {
+      alias: {
+        "@renderer": resolve("src/renderer/src"),
+        "@common": resolve("src/common")
+      }
+    },
+    plugins: [vue()],
+    css: {
+      postcss: {
+        plugins: [tailwindcss(), autoprefixer()]
+      }
+    }
+  }
+});
+export {
+  electron_vite_config_default as default
+};
