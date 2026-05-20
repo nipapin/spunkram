@@ -2,8 +2,17 @@ import { app } from 'electron'
 import { dirname, join } from 'path'
 import * as fs from 'fs'
 import * as os from 'os'
+import { EXTENSION_NAME } from '@common/constants'
 
-export type PluginEntry = { file: string; folder: string }
+export type PluginEntry = {
+  file: string
+  folder: string
+  /**
+   * macOS: установить в `<установленное CEP-расширение>/bin/mac`, а не в `folder`.
+   * Для таких записей `folder` может быть пустой строкой.
+   */
+  installUnderCEPBinMac?: boolean
+}
 
 /**
  * Целевые пути для CSBridge-плагинов.
@@ -29,9 +38,29 @@ export const CSBridge: { win: PluginEntry[]; mac: PluginEntry[] } = {
     },
     {
       file: 'MotionflowInit.bundle',
-      folder: '/Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore'
+      folder:
+        '/Library/Application Support/Adobe/Common/Plug-ins/7.0/MediaCore'
+    },
+    {
+      file: 'Motionflow.bundle',
+      folder: '',
+      installUnderCEPBinMac: true
     }
   ]
+}
+
+/**
+ * Каталог установки для одной записи CSBridge (с учётом macOS → CEP `bin/mac`).
+ */
+export function resolveCSBridgePluginDestDir(
+  p: PluginEntry,
+  platform: NodeJS.Platform
+): string | null {
+  if (platform === 'darwin' && p.installUnderCEPBinMac) {
+    const ext = findInstalledCEPExtensionPath(EXTENSION_NAME)
+    return ext ? join(ext, 'bin', 'mac') : null
+  }
+  return p.folder ? p.folder : null
 }
 
 /**
@@ -53,8 +82,13 @@ export function getPluginsRoot(): string {
  */
 export function getMissingCSBridgePlugins(): string[] {
   const platform: 'win' | 'mac' = process.platform === 'win32' ? 'win' : 'mac'
+  const nodePlatform = process.platform
   return CSBridge[platform]
-    .filter((p) => !fs.existsSync(join(p.folder, p.file)))
+    .filter((p) => {
+      const dir = resolveCSBridgePluginDestDir(p, nodePlatform)
+      if (!dir) return true
+      return !fs.existsSync(join(dir, p.file))
+    })
     .map((p) => p.file)
 }
 

@@ -57,7 +57,9 @@ mac:
   category: public.app-category.utilities
   target:
     - target: dmg
+      arch: universal
     - target: zip
+      arch: universal
   # entitlementsInherit указывает на build/entitlements.mac.plist
   # (создаётся в репозитории, нужен для будущего code-signing).
   entitlementsInherit: build/entitlements.mac.plist
@@ -72,6 +74,9 @@ dmg:
   artifactName: ${productName}-${version}.${ext}
   icon: resources/icon.png
   iconSize: 100
+  # icon: null — иначе electron-builder копирует icon приложения в .VolumeIcon.icns в корне DMG.
+  # backgroundColor вместо background.png — без .background.tiff в корне.
+  backgroundColor: '#0B0B14'
   window:
     width: 540
     height: 380

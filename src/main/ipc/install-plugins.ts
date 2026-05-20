@@ -1,5 +1,5 @@
 import { ipcMain, app } from 'electron'
-import { dirname, join } from 'path'
+import { dirname, join, resolve } from 'path'
 import * as fs from 'fs'
 import * as os from 'os'
 import { execSync } from 'child_process'
@@ -10,7 +10,8 @@ import {
   CSBridge,
   PluginEntry,
   getMissingCSBridgePlugins,
-  getPluginsRoot
+  getPluginsRoot,
+  resolveCSBridgePluginDestDir
 } from './cep-paths'
 
 // sudo-prompt разрешает в `name` только [A-Za-z0-9 ], без спецсимволов.
@@ -18,10 +19,10 @@ import {
 const SUDO_PROMPT_NAME = EXTENSION_NAME.replace(/[^A-Za-z0-9 ]/g, '')
 
 function execAsAdmin(cmd: string): Promise<string> {
-  return new Promise((resolve, reject) => {
+  return new Promise((resolvePromise, reject) => {
     sudoPrompt.exec(cmd, { name: SUDO_PROMPT_NAME }, (err, stdout) => {
       if (err) reject(err)
-      else resolve(typeof stdout === 'string' ? stdout : '')
+      else resolvePromise(typeof stdout === 'string' ? stdout : '')
     })
   })
 }
@@ -85,6 +86,56 @@ async function copyPairsAsAdminMac(pairs: [string, string][]): Promise<void> {
   await execAsAdmin(cmd)
 }
 
+function isDestUnderHomeDir(dest: string): boolean {
+  const destAbs = resolve(dest)
+  const homeAbs = resolve(os.homedir())
+  return destAbs === homeAbs || destAbs.startsWith(`${homeAbs}/`)
+}
+
+function chmodMacOSBinaryDir(bundlePath: string): void {
+  const macosDir = join(bundlePath, 'Contents', 'MacOS')
+  if (fs.existsSync(macosDir)) {
+    execSync(`chmod -R +x "${macosDir}"`)
+  }
+}
+
+/**
+ * Копия в ~/Library/... без sudo: иначе бандл становится root-owned и
+ * последующая распаковка ZXP в папку расширения падает с EACCES на rmdir.
+ */
+function copyMacBundleAsCurrentUser(src: string, dest: string): void {
+  const parent = dirname(dest)
+  fs.mkdirSync(parent, { recursive: true })
+  if (fs.existsSync(dest)) {
+    try {
+      fs.rmSync(dest, { recursive: true, force: true })
+    } catch (err: unknown) {
+      if (err && typeof err === 'object' && 'code' in err && err.code === 'EACCES') {
+        throw new Error(
+          `Cannot replace "${dest}" (permission denied). If a previous install copied it as root, run: sudo rm -rf "${dest}" and try again.`
+        )
+      }
+      throw err
+    }
+  }
+  fs.cpSync(src, dest, { recursive: true })
+  chmodMacOSBinaryDir(dest)
+}
+
+async function copyPairsOnMac(pairs: [string, string][]): Promise<void> {
+  const sudoPairs: [string, string][] = []
+  for (const [src, dest] of pairs) {
+    if (isDestUnderHomeDir(dest)) {
+      copyMacBundleAsCurrentUser(src, dest)
+    } else {
+      sudoPairs.push([src, dest])
+    }
+  }
+  if (sudoPairs.length > 0) {
+    await copyPairsAsAdminMac(sudoPairs)
+  }
+}
+
 /**
  * После того как sudo-prompt вернул success, перепроверяем что файлы
  * действительно лежат на месте. Без этого баг "копия молча не выполнилась"
@@ -135,7 +186,6 @@ async function installMac(
   missing: PluginEntry[],
   pluginsRoot: string
 ): Promise<string[]> {
-  // 1. Распаковываем zip с бандлами в безопасное место (вне .app).
   const zipPath = join(pluginsRoot, 'cep-helpers.zip')
   if (!fs.existsSync(zipPath)) {
     throw new Error(
@@ -146,11 +196,8 @@ async function installMac(
 
   const extractDir = getMacExtractDir()
   fs.mkdirSync(extractDir, { recursive: true })
-  // overwrite=true: пересоздаём при каждом запуске, чтобы старый
-  // распакованный bundle от прошлой версии не перебивал новый.
   new AdmZip(zipPath).extractAllTo(extractDir, true)
 
-  // 2. Убедимся, что все нужные бандлы реально появились после распаковки.
   const missingSources = missing.filter(
     (p) => !fs.existsSync(join(extractDir, p.file))
   )
@@ -159,7 +206,6 @@ async function installMac(
     throw new Error(`Plugin bundles missing inside cep-helpers.zip: ${list}`)
   }
 
-  // 3. chmod +x на бинарники внутри Contents/MacOS — иначе бандл не загрузится.
   const pairs: [string, string][] = missing.map((p) => {
     const bundle = join(extractDir, p.file)
     const macosDir = join(bundle, 'Contents', 'MacOS')
@@ -170,10 +216,16 @@ async function installMac(
         console.warn('[install-plugins][mac] chmod failed:', chmodErr)
       }
     }
-    return [bundle, join(p.folder, p.file)]
+    const destDir = resolveCSBridgePluginDestDir(p, 'darwin')
+    if (!destDir) {
+      throw new Error(
+        'CEP extension is not installed; cannot place Motionflow.bundle under extension bin/mac. Install the extension first.'
+      )
+    }
+    return [bundle, join(destDir, p.file)]
   })
 
-  await copyPairsAsAdminMac(pairs)
+  await copyPairsOnMac(pairs)
 
   const stillMissing = verifyDestinationsExist(pairs)
   if (stillMissing.length > 0) {
@@ -200,16 +252,15 @@ export function registerInstallPluginsHandlers(): void {
       const config = CSBridge[platform]
       const pluginsRoot = getPluginsRoot()
 
-      const missing = config.filter(
-        (p) => !fs.existsSync(join(p.folder, p.file))
-      )
+      const missing = config.filter((p) => {
+        const dir = resolveCSBridgePluginDestDir(p, process.platform)
+        if (!dir) return true
+        return !fs.existsSync(join(dir, p.file))
+      })
       if (missing.length === 0) {
         return { success: true, installed: [], alreadyPresent: true }
       }
 
-      // Для Windows бандлы лежат в pluginsRoot напрямую — проверим заранее,
-      // чтобы не уходить в sudo с заведомо отсутствующими файлами.
-      // Для Mac та же проверка делается уже после распаковки zip внутри installMac.
       if (platform === 'win') {
         const missingSources = missing.filter(
           (p) => !fs.existsSync(join(pluginsRoot, p.file))

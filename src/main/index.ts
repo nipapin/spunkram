@@ -1,5 +1,5 @@
 import { electronApp, is, optimizer } from '@electron-toolkit/utils'
-import { app, BrowserWindow, ipcMain, shell } from 'electron'
+import { app, BrowserWindow, ipcMain, Menu, shell } from 'electron'
 import { join } from 'path'
 import icon from '../../resources/icon.png?asset'
 import { setupDownloadHandlers } from './ipc/download-handlers'
@@ -9,6 +9,15 @@ import { registerInstallPluginsHandlers } from './ipc/install-plugins'
 import { registerRunningAppsHandlers } from './ipc/running-apps'
 
 const preloadPath = join(__dirname, '../preload/index.js')
+
+function hideApplicationMenu(): void {
+  // On macOS, setApplicationMenu(null) does not clear the native menu (Electron returns early).
+  if (process.platform === 'darwin') {
+    Menu.setApplicationMenu(Menu.buildFromTemplate([]))
+  } else {
+    Menu.setApplicationMenu(null)
+  }
+}
 
 function createWindow(): void {
   // Create the browser window.
@@ -64,6 +73,8 @@ function createWindow(): void {
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
 app.whenReady().then(() => {
+  hideApplicationMenu()
+
   // Очистка кэша при запуске
   // await app.getPath('userData')
   // await session.defaultSession.clearCache()
@@ -85,6 +96,7 @@ app.whenReady().then(() => {
   // and ignore CommandOrControl + R in production.
   // see https://github.com/alex8088/electron-toolkit/tree/master/packages/utils
   app.on('browser-window-created', (_, window) => {
+    hideApplicationMenu()
     optimizer.watchWindowShortcuts(window)
   })
 
