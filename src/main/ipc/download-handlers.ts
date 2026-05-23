@@ -7,7 +7,7 @@ import { URL } from 'url'
 import sudoPrompt from 'sudo-prompt'
 import AdmZip from 'adm-zip'
 import { EXTENSION_URL, EXTENSION_NAME } from '@common/constants'
-import { getVersionFilePath } from './get-versions'
+import { getLatestStableVersion, getVersionFilePath } from './get-versions'
 import {
   chooseCEPInstallTarget,
   findInstalledCEPExtensionPath,
@@ -76,7 +76,10 @@ async function runInstall(
   wc: WebContents,
   version: string | null | undefined
 ): Promise<void> {
-  const url = EXTENSION_URL + (version ? `&version=${version}` : '')
+  const trimmed = typeof version === 'string' ? version.trim() : ''
+  const resolvedVersion = trimmed || (await getLatestStableVersion())
+  const url =
+    EXTENSION_URL + `&version=${encodeURIComponent(resolvedVersion)}`
 
   let zxpPath: string | null = null
   let stagingDir: string | null = null

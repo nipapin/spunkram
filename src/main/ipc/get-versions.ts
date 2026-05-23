@@ -106,6 +106,16 @@ export function getVersionFilePath(): string {
   )
 }
 
+/** Последняя stable-версия с сервера (fixed.stable). */
+export async function getLatestStableVersion(): Promise<string> {
+  const data = await httpsGet<VersionData>(URL_VERSIONS_LIST)
+  const stable = data.fixed?.stable?.trim()
+  if (!stable) {
+    throw new Error('Stable version is missing in versions_list response')
+  }
+  return stable
+}
+
 /**
  * Register all version-related IPC handlers
  */

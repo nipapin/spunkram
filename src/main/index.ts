@@ -26,7 +26,9 @@ function createWindow(): void {
     height: 670,
     show: false,
     autoHideMenuBar: true,
-    ...(process.platform === 'linux' ? { icon } : {}),
+    // На Windows и Linux иконка окна/панели задач берётся из BrowserWindow.icon.
+    // На macOS — из .icns в бандле (build/icon.icns).
+    ...(process.platform !== 'darwin' ? { icon } : {}),
     // webPreferences: {
     //   preload: preloadPath,
     //   nodeIntegration: false,

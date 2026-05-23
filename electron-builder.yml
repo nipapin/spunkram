@@ -36,7 +36,8 @@ asar: true
 
 win:
   executableName: Spunkram-Installer
-  icon: resources/icon.png
+  # Windows требует .ico с несколькими размерами (генерируется scripts/generate-win-icon.mjs).
+  icon: build/icon.ico
   target:
     - target: nsis
       arch:
@@ -46,6 +47,8 @@ nsis:
   artifactName: ${productName}_${version}_setup.${ext}
   oneClick: true
   perMachine: false
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
 
 mac:
   icon: resources/icon.png

@@ -390,7 +390,7 @@ const installExtension = async (
         }
       })
 
-      window.api.downloadExtension(version ?? '')
+      window.api.downloadExtension(targetVersion)
     } else {
       rollbackOptimisticVersion()
       installationStatus.value = t('status.apiUnavailable')

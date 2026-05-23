@@ -165,6 +165,8 @@ resources/
     ├── win/                   # .acsrf / .prm — лежат сразу как файлы
     └── mac/cep-helpers.zip    # bundles — упакованы в zip, распаковываются на лету
 build/
+├── icon.ico                   # Windows (npm run icons:win из resources/icon.png)
+├── icon.icns                  # macOS (scripts/generate-mac-icon.sh на Darwin)
 └── entitlements.mac.plist     # для будущей подписи macOS-сборки
 electron-builder.yml           # ЕДИНСТВЕННАЯ конфигурация сборки
 ```
